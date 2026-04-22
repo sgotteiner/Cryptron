@@ -763,11 +763,13 @@ The backtester doesn't just report metrics — it suggests **specific changes** 
 
 ---
 
-## 9. LLM Usage
+## 9. The Brain — LLM Roles
 
-### Keep It Simple for V1
+The LLM isn't just a parser. It plays three distinct roles in the system, each with different requirements:
 
-The LLM does ONE job in V1: **parse a raw message into a structured signal.**
+### Role 1: Signal Parser (Structured Extraction)
+
+The simplest role. Parse a raw message into structured data. No reasoning needed — just pattern matching with a schema.
 
 **Input**: raw Telegram message text
 ```
@@ -796,37 +798,159 @@ Stop Targets: 62000.0
 }
 ```
 
-For non-signal messages (chat, memes, admin posts):
+For non-signal messages:
 ```json
 {
-  "type": "info",           // or "sentiment" or "other"
+  "type": "info",
   "summary": "User discussing BTC price action",
   "coins_mentioned": ["BTC"],
   "sentiment": "bullish"
 }
 ```
 
-This is structured extraction — even small/free models handle it well because there's no reasoning, just pattern matching with a schema.
+Even small/free models handle this well. Provider chain: Gemini Flash free → Groq free (Llama 3.3 70B) → regex fallback for obvious formats.
+
+### Role 2: Conversational Trading Assistant (Telegram Chat)
+
+The Telegram bot isn't just a one-way notification channel — it's a **two-way chat interface** to the LLM brain. You talk to it like a colleague. It has access to all the system's tools and data.
+
+**How it works**: you send a Telegram message → the LLM receives it with conversation history + available tools → it reasons about what to do → calls tools (query DB, run backtest, test Pine, check exchange) → responds with results and insights → you follow up → it digs deeper.
+
+**Example conversation:**
+```
+You:   "How did BinanceKillers do last week?"
+Bot:   Queries DB → "12 signals. 7 wins (58%). Best: SOL +18%.
+       3 scam flags. Want me to dig into the scam flags?"
+
+You:   "Yes, and test CryptoSlaya on the winners"
+Bot:   Runs pine_tester on 7 coins →
+       "Pine confirmed 5 of 7. The 2 it missed were low-cap alts
+       where Pine doesn't have enough history. Should I try a
+       different timeframe for those?"
+
+You:   "Try 1D instead of 4H"
+Bot:   Runs tests → "1D confirms 1 of 2. The other (PEPE/USDT)
+       has too little data on any timeframe."
+
+You:   "What coins are most mentioned across all sources this week?"
+Bot:   Runs convergence query → "SOL (3 sources), BTC (2), AVAX (2).
+       SOL has the strongest convergence — BinanceKillers, VIPSignals,
+       and a new group I'm still evaluating."
+```
+
+The LLM decides which tools to call based on your question. Same tools as the pipeline agents — `query_signals`, `run_backtest`, `test_pine`, `check_exchange` — but invoked through natural conversation instead of a fixed YAML sequence.
+
+**Conversation history is saved** in Supabase so the assistant remembers context across sessions. "Last time we discussed PEPE, you said you don't trust low-cap signals from group X."
+
+### Role 3: Research Brain (Autonomous Experiment Design)
+
+This is the most advanced role. When you give the system a research goal — "optimize the Pine strategy for BinanceKillers signals" — the LLM doesn't just grid-search parameters. It **reasons about results and designs smarter experiments**, like a junior developer learning to be senior.
+
+**Example: Pine strategy optimization**
+```
+LLM runs: CryptoSlaya on BTC daily → 68% WR ✅
+LLM runs: CryptoSlaya on BTC 1H   → 41% WR ❌
+
+LLM reasons: "Works on daily but not hourly. The moving averages
+(50/200) are designed for longer timeframes. Let me try 4H as a
+middle ground, and also try adjusting MAs to 20/50 on hourly."
+
+LLM runs: CryptoSlaya on BTC 4H        → 61% WR ✅
+LLM runs: CryptoSlaya (MA 20/50) on 1H → 55% WR ⚠️
+
+LLM reasons: "4H works well with default params. Hourly improved
+with shorter MAs but still weaker. Let me check if this pattern
+holds for altcoins or just BTC..."
+
+LLM runs: CryptoSlaya on SOL 4H  → 58% WR ✅
+LLM runs: CryptoSlaya on SOL 1D  → 44% WR ❌
+
+LLM reasons: "SOL works on 4H but not daily — opposite of BTC.
+This suggests the strategy needs different timeframes per coin
+volatility class. Recommendation: BTC on 1D, altcoins on 4H."
+```
+
+A grid search can't do this. The LLM observes patterns, forms hypotheses, and designs targeted experiments. There's a budget cap (max N iterations) so it doesn't run forever.
+
+**Implementation**: a reasoning loop, not a framework.
+
+```python
+for i in range(budget):
+    # Show the LLM all previous results
+    # Ask: "What should we test next and why? Or DONE?"
+    response = llm.reason(context=all_results_so_far, tools=available_tools)
+    if response.action == "DONE":
+        break
+    result = execute(response.action)
+    results.append(result)
+    reasoning_log.append(response.reasoning)
+```
+
+~80 lines of Python. No framework needed. The LLM IS the brain.
+
+### Progressive Autonomy — The Developer Analogy
+
+The system learns like onboarding a junior developer. You don't dump everything on day 1. You give them tasks, they get stuck, you teach them, they apply what they learned.
+
+**Month 1 — Junior dev, asks a lot:**
+```
+Bot:  "BinanceKillers had 3 scam signals this week. Should I
+       lower their trust score or remove them?"
+You:  "Lower the score, never auto-remove. I want to see if
+       they recover."
+```
+→ System saves: *preference: never auto-remove targets. On scam spike: lower score, keep monitoring.*
+
+**Month 3 — Mid-level, asks less:**
+```
+Bot:  "BinanceKillers had 3 scam signals again. Lowered trust to C.
+       Also noticed their weekend signals are 80% scams vs 15% on
+       weekdays. Want me to only evaluate weekday signals?"
+You:  "Smart. Yes."
+```
+→ System learned the pattern AND proposed a solution. Only asked for confirmation.
+
+**Month 6 — Senior dev, just reports:**
+```
+Bot:  "Weekly report: Disabled weekend signals for BinanceKillers
+       (scam rate 85%). Optimized CryptoSlaya params for altcoins —
+       4H with MA 20/50 gives +8% expected value. Applied.
+       Discovery found 2 new groups, evaluating for 2 weeks before
+       enabling notifications."
+```
+→ System made decisions itself because it's seen you make them before.
+
+**How this works technically:**
+
+1. **Preference memory**: Every correction, every "yes/no/do it differently" is stored in a `preferences` table indexed by situation type. Before making a decision, the system checks: "Have I seen this situation? What did the user say?"
+
+2. **Confidence threshold**: Each decision has a confidence score. High confidence (seen this exact pattern before, user always said the same thing) → act autonomously. Low confidence (new situation, ambiguous) → ask. Over time, more decisions cross the threshold.
+
+3. **Decision log**: Everything it does autonomously is logged with reasoning. You can audit: "Why did you do this?" → "Because on March 15th you told me to handle it this way."
+
+4. **Research playbook**: The system learns not just preferences but **methodology**. You teach it "always check other timeframes" → it internalizes this as a research step. You teach it "segment by market cap" → it starts doing it automatically. Each lesson becomes part of its evaluation workflow.
+
+5. **Alignment through chat, not config editing**: Instead of you editing YAML, you tell it "BinanceKillers signals need more time to play out" and it translates that into the right config changes.
+
+### The Three Operating Modes
+
+| Mode | How It Works | LLM Role |
+|------|-------------|----------|
+| **Automated** (pipelines) | Runs 24/7. Fixed YAML sequences. Sends alerts. | Signal parser only |
+| **Conversational** (Telegram chat) | You ask questions or give goals. Think together. | Conversational assistant with tools |
+| **Autonomous research** (optimizer) | You say "optimize X." System runs experiments, updates you, asks when uncertain. | Research brain with reasoning loop |
+
+All three modes share the same tools and the same database.
 
 ### LLM Provider Chain
 
 ```
-Gemini Flash free tier (15 RPM, 1M tokens/day)
-  ↓ if rate limited
-Groq free tier (30 RPM, Llama 3.3 70B)
-  ↓ if rate limited
-Simple regex heuristic (fallback for obvious signals)
+Signal parsing:    Gemini Flash free → Groq free → regex fallback
+Conversation:      Gemini Pro free → Groq Llama 3.3 70B → Gemini Flash
+Research brain:    Gemini Pro free → Groq Llama 3.3 70B
 ```
 
-All free. The router tries providers in order and falls back automatically.
-
-### Future LLM Uses (Not V1)
-
-- YouTube transcript analysis: "What coins did this video mention? What strategy was described?"
-- News interpretation: "What does this headline mean for the crypto market?"
-- Strategy optimization reasoning: "Why might this parameter work better?"
-
-These may need better models (Gemini Pro, etc.) but still free-tier.
+All free. Different roles benefit from different model quality — parsing is easy (Flash), reasoning benefits from better models (Pro).
 
 ---
 
@@ -934,6 +1058,41 @@ created_at       TIMESTAMPTZ
 updated_at       TIMESTAMPTZ
 ```
 
+**`preferences`** — learned decision patterns from user feedback
+```sql
+id               SERIAL PRIMARY KEY
+situation_type   TEXT         -- "scam_spike", "low_win_rate", "new_group_found"
+situation_hash   TEXT         -- hash of the situation context for dedup
+user_instruction TEXT         -- what the user said to do
+example_context  JSONB        -- the specific situation that triggered this preference
+confidence       NUMERIC      -- how confident the system is in applying this autonomously
+times_applied    INT DEFAULT 0
+created_at       TIMESTAMPTZ
+last_applied     TIMESTAMPTZ
+```
+
+**`chat_history`** — conversation memory for the Telegram chat interface
+```sql
+id               SERIAL PRIMARY KEY
+chat_id          TEXT         -- Telegram chat ID
+role             TEXT         -- "user" | "assistant"
+content          TEXT         -- message text
+tools_called     JSONB        -- which tools the assistant invoked
+created_at       TIMESTAMPTZ
+```
+
+**`research_sessions`** — autonomous research/optimization runs
+```sql
+id               SERIAL PRIMARY KEY
+goal             TEXT         -- "optimize Pine for BinanceKillers"
+iterations       JSONB        -- [{action, result, reasoning}, ...]
+final_summary    TEXT
+suggestions      JSONB
+status           TEXT         -- "running" | "completed" | "paused"
+created_at       TIMESTAMPTZ
+completed_at     TIMESTAMPTZ
+```
+
 JSON/JSONB columns are used liberally for flexibility — adding a new config field or a new strategy detail means adding a JSON key, not a schema migration.
 
 ---
@@ -1014,22 +1173,30 @@ The API is the source of truth. Everything you can do in the web UI, you can als
 
 **Core engine**: pipeline runner, agent base class, agent registry, config loader, scheduler, Supabase connection.
 
-**One working flow end-to-end**: Telegram signal → LLM parse → exchange check → scam check → evaluate → score → save → notify.
+**Two working flows end-to-end**:
+- Telegram signal → LLM parse → exchange check → scam check → evaluate → score → save → notify
+- Telegram signal → LLM parse → Pine confirmation → save → notify (when TradingView is available)
+
+**Pipeline backtesting**: replay historical signals through pipelines, measure precision/recall, LLM-driven experiment design for strategy optimization.
 
 **Control panel**: basic web UI with all 5 pages — functional, not beautiful yet.
 
-**Result**: you can add Telegram groups, configure their evaluation strategies, and get notifications for signals that pass your criteria. Everything is stored in Supabase. You can query the data via your coding assistant.
+**Result**: you can add Telegram groups, configure their evaluation strategies, get Pine-confirmed signals when TV is available, and get notifications for signals that pass your criteria. The system backtests itself and suggests improvements. Everything is stored in Supabase.
 
-### V2 — More Agents (Build Next)
+### V2 — The Brain (Build Next)
 
-YouTube reader + influencer scorer. Pine strategy tester (when TV is available). CMC sentiment enricher. eToro copy trader source.
+**Conversational Telegram interface**: chat with your system via Telegram. Ask questions, give goals, think together. The LLM has access to all tools and data.
 
-### V3 — Intelligence (Build Later)
+**Progressive autonomy**: preference memory, confidence-based escalation, decision logging. The system learns your methodology and starts handling routine decisions alone.
 
-Cross-source convergence detection. Collusion detection. Pipeline backtesting. Strategy optimization.
+**Research brain**: LLM-driven experiment design loop. Observes results, reasons about patterns, designs smarter tests. You teach it your research methodology and it internalizes it.
 
-### V4 — Autonomy (Build Eventually)
+### V3 — More Sources (Build Later)
 
-Discovery agents that find new groups/channels. News monitoring. Web search integration. Wallet tracking. Self-improving pipelines.
+YouTube reader + influencer scorer. CMC sentiment enricher. eToro copy trader source.
 
-**The key**: V1's architecture is designed so V2/V3/V4 are achieved by adding new agent files and pipeline YAMLs, not rewriting the core.
+### V4 — Intelligence & Autonomy (Build Eventually)
+
+Cross-source convergence detection. Collusion detection. Discovery agents that find new groups/channels. News monitoring. Web search integration. Wallet tracking. Self-improving pipelines.
+
+**The key**: V1's architecture is designed so V2/V3/V4 are achieved by adding new agent files and pipeline YAMLs — not rewriting the core. The conversational brain (V2) uses the exact same tools as the automated pipelines (V1), just invoked through natural language instead of YAML.
