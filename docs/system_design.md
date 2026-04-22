@@ -101,7 +101,7 @@ class BaseAgent:
 
 Adding a new agent = write one Python file with a class that extends `BaseAgent`, put it in the `agents/` folder. It's automatically discovered and available in pipelines and the control panel.
 
-### V1 Agents (Build Now)
+### Core Agents
 
 | Agent | Type | What It Does |
 |-------|------|-------------|
@@ -115,9 +115,7 @@ Adding a new agent = write one Python file with a class that extends `BaseAgent`
 | `telegram_notifier` | action | Sends a formatted alert to you via a Telegram bot. |
 | `db_saver` | action | Saves signal, analysis results, and pipeline run to Supabase. |
 
-### Future Agents (Architecture Supports, Not Built in V1)
-
-**More Sources:**
+### More Sources
 
 | Agent | What It Does | Example Use |
 |-------|-------------|-------------|
@@ -126,7 +124,7 @@ Adding a new agent = write one Python file with a class that extends `BaseAgent`
 | `etoro_scraper` | Scrapes a public eToro trader's portfolio to detect new positions. | "CPHequities just opened a LONG on AAPL. Check if it aligns with any other signals I have." |
 | `cmc_checker` | Scrapes CoinMarketCap for community votes, market cap, circulating supply, token info. | "80% of CMC voters are bullish on this coin and it has $50M daily volume — looks legitimate." |
 
-**Discovery Agents (Find New Sources Automatically):**
+### Discovery Agents
 
 | Agent | What It Does | Example Use |
 |-------|-------------|-------------|
@@ -134,7 +132,7 @@ Adding a new agent = write one Python file with a class that extends `BaseAgent`
 | `pine_repo_scraper` | Searches GitHub for high-starred Pine Script repositories, scrapes the scripts, queues them for testing via the Pine tester. | "Found a Pine strategy with 200 stars. It has good results on BTC 4H but fails on altcoins." |
 | `reddit_scanner` | Monitors crypto subreddits for coin mentions with sentiment analysis. | "SOL was mentioned 47 times on r/altcoin today with mostly bullish sentiment. This aligns with a @BinanceKillers signal from this morning." |
 
-**Analysis Agents (Cross-Source Intelligence):**
+### Analysis Agents
 
 | Agent | What It Does | Example Use |
 |-------|-------------|-------------|
@@ -1167,36 +1165,14 @@ The API is the source of truth. Everything you can do in the web UI, you can als
 
 ---
 
-## 13. What Gets Built When
+## 13. Extensibility
 
-### V1 — The Foundation That Works (Build Now)
+The system is designed to grow without rewrites:
 
-**Core engine**: pipeline runner, agent base class, agent registry, config loader, scheduler, Supabase connection.
+- **New agent** = one Python file in `agents/`, auto-discovered
+- **New pipeline** = one YAML file in `pipelines/`, immediately available
+- **New evaluation strategy** = one decorated Python function, usable in any target config
+- **New source type** = new agent + new target configs, plugs into existing pipelines
+- **New research capability** = teach the brain via Telegram chat, it internalizes the methodology
 
-**Two working flows end-to-end**:
-- Telegram signal → LLM parse → exchange check → scam check → evaluate → score → save → notify
-- Telegram signal → LLM parse → Pine confirmation → save → notify (when TradingView is available)
-
-**Pipeline backtesting**: replay historical signals through pipelines, measure precision/recall, LLM-driven experiment design for strategy optimization.
-
-**Control panel**: basic web UI with all 5 pages — functional, not beautiful yet.
-
-**Result**: you can add Telegram groups, configure their evaluation strategies, get Pine-confirmed signals when TV is available, and get notifications for signals that pass your criteria. The system backtests itself and suggests improvements. Everything is stored in Supabase.
-
-### V2 — The Brain (Build Next)
-
-**Conversational Telegram interface**: chat with your system via Telegram. Ask questions, give goals, think together. The LLM has access to all tools and data.
-
-**Progressive autonomy**: preference memory, confidence-based escalation, decision logging. The system learns your methodology and starts handling routine decisions alone.
-
-**Research brain**: LLM-driven experiment design loop. Observes results, reasons about patterns, designs smarter tests. You teach it your research methodology and it internalizes it.
-
-### V3 — More Sources (Build Later)
-
-YouTube reader + influencer scorer. CMC sentiment enricher. eToro copy trader source.
-
-### V4 — Intelligence & Autonomy (Build Eventually)
-
-Cross-source convergence detection. Collusion detection. Discovery agents that find new groups/channels. News monitoring. Web search integration. Wallet tracking. Self-improving pipelines.
-
-**The key**: V1's architecture is designed so V2/V3/V4 are achieved by adding new agent files and pipeline YAMLs — not rewriting the core. The conversational brain (V2) uses the exact same tools as the automated pipelines (V1), just invoked through natural language instead of YAML.
+Every component — the pipeline runner, the brain, the dashboard — works with any agent. The system doesn't know or care how many agents exist. It discovers them at startup and makes them available everywhere.
