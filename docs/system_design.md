@@ -330,7 +330,7 @@ trigger:
   source_filter: ["binance_killers"]     # optional: only for specific targets
   cron: "0 */6 * * *"                    # for scheduled runs
 
-# WHAT does it do? (ordered steps)
+# WHAT does it do? (ordered steps limit, parallel available)
 steps:
   - agent: agent_name
     input: $trigger.field OR $previous_step.field
@@ -338,6 +338,13 @@ steps:
     config: {extra: params}        # step-specific config overrides
     stop_if_null: true             # if agent returns null, abort pipeline
     optional: true                 # if agent fails, continue anyway
+
+  # Agents can run in parallel for decoupled workflows
+  - parallel:
+      - agent: exchange_checker
+        input: $signal.coin
+      - agent: scam_detector
+        input: $signal.coin
 
 # SHOULD we act on the results? (conditions)
 notify:
@@ -381,23 +388,24 @@ steps:
     output: signal
     stop_if_null: true        # not a trading signal — stop
 
-  - agent: exchange_checker
-    input: $signal.coin
-    output: exchange
+  - parallel:
+      - agent: exchange_checker
+        input: $signal.coin
+        output: exchange
 
-  - agent: scam_detector
-    input:
-      coin: $signal.coin
-      signal_time: $signal.timestamp
-    output: scam
+      - agent: scam_detector
+        input:
+          coin: $signal.coin
+          signal_time: $signal.timestamp
+        output: scam
 
-  - agent: price_checker
-    input:
-      coin: $signal.coin
-      exchange: $exchange.name
-      since: $signal.timestamp
-    output: price_data
-    optional: true            # may fail for very obscure coins
+      - agent: price_checker
+        input:
+          coin: $signal.coin
+          exchange: $exchange.name
+          since: $signal.timestamp
+        output: price_data
+        optional: true            # may fail for very obscure coins
 
   - agent: signal_evaluator
     input:

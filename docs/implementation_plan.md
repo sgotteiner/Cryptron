@@ -116,7 +116,9 @@ Plus auto-discovery registry: scans `agents/` for BaseAgent subclasses, maps by 
 ### [NEW] `core/pipeline.py`
 `PipelineRunner`:
 1. Load YAML → list of steps
-2. For each step: resolve agent → resolve inputs (`$signal.coin`) → call `agent.run()` → store output
+2. For each step/block:
+   - If single agent: resolve inputs → call `agent.run()` → store output
+   - If `parallel` block: resolve inputs → `asyncio.gather()` all agents → store outputs
 3. Handle `stop_if_null`, `optional` flags
 4. Evaluate notify conditions → call notify agent if passed
 5. **`dry_run` mode**: same logic, skips action agents. For backtesting.
