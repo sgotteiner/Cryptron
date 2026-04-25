@@ -1,0 +1,20 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+
+# Telethon session files (CRITICAL: keeps your Telegram login safe)
+*.session
+*.session-journal
+
+# Logs and DBs
+*.log
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
