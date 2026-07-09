@@ -5,9 +5,9 @@
 > **is** as a living thing, so every later decision — what to build, what to skip, what "done"
 > means — can be checked against it.
 >
-> The earlier `system_design.md` describes a monitoring system that validates signals and
-> notifies you. That is real, but it is a *byproduct*. This document describes the actual
-> organism. If the two ever conflict, this one wins.
+> An earlier attempt designed a monitoring system that validates signals and notifies you —
+> then got thrown away for being designed without this model underneath it. A pipeline that
+> notifies you is real, but it is a *byproduct*. This document describes the actual organism.
 
 ---
 
