@@ -20,3 +20,6 @@ env/
 .idea/
 # Claude Code local settings
 .claude/
+
+# Personal watch-list and local env
+targets.yaml

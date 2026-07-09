@@ -74,7 +74,10 @@ CREATE INDEX ON sense_telegram (coin, observed_at);
 ```
 
 Adding a hand = adding one table with this skeleton + the collector that fills it. Nothing else
-changes.
+changes. (Plus one piece of shared plumbing: a `sense_cursors` table records where each
+collector left off per source, so restarts resume with no missed items and no duplicates —
+sense tables also carry a uniqueness key on the source's native item id, making capture
+idempotent.)
 
 ### Experiments — first-class, not a junction
 
