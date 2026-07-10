@@ -1,0 +1,27 @@
+{
+  "//": "Copy to .mcp.json (gitignored) and fill in keys. These are Cryptron's external hands.",
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_YOUR_TOKEN"
+      ]
+    },
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": { "FIRECRAWL_API_KEY": "fc-YOUR_KEY" }
+    },
+    "tradingview": {
+      "command": "node",
+      "args": ["c:/my_projects/TradingViewMCP/src/server.js"]
+    },
+    "youtube-summarizer": {
+      "command": "node",
+      "args": ["c:/my_projects/YoutubeMCPUse/dist/index.js"]
+    }
+  }
+}
