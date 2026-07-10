@@ -8,6 +8,14 @@ Uses twikit (unofficial, logs in with your X account) — the only workable
 free read path. Flakier than official APIs; treat failures as expected.
 Needs TWITTER_USERNAME / TWITTER_EMAIL / TWITTER_PASSWORD in .env.
 Run:  python -m cryptron.senses.twitter
+
+STATUS (2026-07): blocked. X now fingerprints the connection itself (not
+just login) — twikit and twscrape both fail before/at login even with a
+valid logged-in session's cookies (ct0 + auth_token), because plain HTTP
+clients don't pass the browser-fingerprint check. Confirmed not a
+credentials issue. Fix needs a real browser: Firecrawl (already an MCP
+hand here) or Playwright. Deferred — Telegram + CMC are enough for the
+first experiment; this is the attention sense, wanted later.
 """
 import asyncio
 from email.utils import parsedate_to_datetime
