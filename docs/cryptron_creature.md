@@ -334,6 +334,31 @@ taste.
 What it may do: **today** — research, accumulate knowledge, promote, and emit signals to me
 (it does not trade). **Later, maybe** — trade on its own signals, once it's earned that trust.
 
+### The dialogue — guiding the investigator
+
+Cryptron is **my assistant**, and the investigation is a joint one. Telegram is not only where
+it listens to groups — it is **our shared channel**: its voice reports to me, and my replies
+are part of its input. The end goal is a strategy *I* will put money on, so I must be able to
+steer.
+
+- **It reports conversationally, I guide.** It tells me about an experiment and what it
+  learned; I can redirect the next one. My questions *are* the operators: "small coins?" is
+  decompose-by-market-cap; "trading on a known exchange?" is enrich-from-exchange-data. Guidance
+  is the designer taking input from its most trusted sense — me.
+- **Asking me is itself a move.** When the brain is uncertain, the cheapest experiment is
+  sometimes a question to the human. (This is the junior→senior arc of §7 operating in both
+  directions.)
+- **Chat is the retrieval contract pointed at a human.** "Summarize", "what about the losers
+  specifically?" — my questions compile to the same memory queries the brain uses, rendered
+  as conversation. Too-long answers are a retrieval problem, not a personality problem.
+- **Approval modes — the autonomy dial.** Per thread or globally: *ask-first* (propose the
+  experiment, wait for my ok), *report-after* (run, then tell me), *autonomous* (only surface
+  promotions). The dial moves as trust is earned — and my approvals/rejections are exactly the
+  training data the bar-learning loop above feeds on.
+- **My words are evidence.** The conversation is captured like any sense; durable guidance
+  becomes finds with `provenance: user`, so my taste accumulates instead of evaporating at the
+  end of a chat.
+
 ---
 
 ## 12. What "finished" looks like

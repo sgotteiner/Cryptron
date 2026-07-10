@@ -292,8 +292,12 @@ confidence/status decides what's *trusted* — similarity is an access path, nev
    goalpost-moving), `result` + `reading` at analyze-time.
 3. **Analyze-time:** finds born (`candidate`), promoted, narrowed, or killed. History line
    appended — the find's biography is part of the find.
-4. **Chat-time:** the user's corrections and priors become finds like any other, marked
-   `provenance: user` with high starting confidence. (Seeding, §8 below.)
+4. **Chat-time:** the conversation with the user is itself captured like any sense (a chat log
+   in layer 1 — Telegram is both ears and voice), and durable guidance becomes finds marked
+   `provenance: user` with high starting confidence. (Seeding, §8 below.) The reverse direction
+   uses the same machinery: the user's questions ("small coins?", "summarize") compile to the
+   §6 retrieval queries, rendered conversationally — chat is the retrieval contract pointed at
+   a human.
 
 ---
 
