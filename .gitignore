@@ -23,3 +23,4 @@ env/
 
 # Personal watch-list and local env
 targets.yaml
+*.cookies

@@ -19,6 +19,37 @@ CREATE INDEX IF NOT EXISTS idx_sense_telegram_source_time
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_telegram_msg
   ON sense_telegram (source_id, ((payload->>'message_id')::bigint));
 
+-- CMC is a snapshot sense: no native item id — observed_at is fetch time and
+-- every run appends a new snapshot (ephemeral data, gone if not captured now).
+CREATE TABLE IF NOT EXISTS sense_cmc (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- the symbol; known natively here
+  observed_at TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,
+  payload     JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sense_cmc_coin_time
+  ON sense_cmc (coin, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_cmc_snapshot
+  ON sense_cmc (source_id, coin, observed_at);
+
+-- Twitter is a stream sense like Telegram: tweets have native ids.
+CREATE TABLE IF NOT EXISTS sense_twitter (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- stamped from the target's coin, if any
+  observed_at TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- which query/watch
+  payload     JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sense_twitter_coin_time
+  ON sense_twitter (coin, observed_at);
+CREATE INDEX IF NOT EXISTS idx_sense_twitter_source_time
+  ON sense_twitter (source_id, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_twitter_tweet
+  ON sense_twitter (source_id, ((payload->>'tweet_id')::bigint));
+
 -- Sense-layer plumbing: where each collector left off, so restarts resume
 -- with no missed items and no duplicates.
 CREATE TABLE IF NOT EXISTS sense_cursors (

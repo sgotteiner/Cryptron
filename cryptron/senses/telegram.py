@@ -60,14 +60,7 @@ async def capture_target(client: TelegramClient, conn, target: dict) -> int:
     return inserted
 
 
-async def main() -> None:
-    targets = config.load_targets().get(SENSE, [])
-    if not targets:
-        raise SystemExit("No telegram targets in targets.yaml")
-
-    conn = db.get_conn()
-    db.init_schema(conn)
-
+async def capture_all(conn, targets: list[dict]) -> None:
     api_id, api_hash, phone = config.telegram_credentials()
     client = TelegramClient(SESSION, api_id, api_hash)
     await client.start(phone=phone)
@@ -76,6 +69,15 @@ async def main() -> None:
         for target in targets:
             n = await capture_target(client, conn, target)
             print(f"{target['source_id']}: {n} new messages captured")
+
+
+async def main() -> None:
+    targets = config.load_targets().get(SENSE, [])
+    if not targets:
+        raise SystemExit("No telegram targets in targets.yaml")
+    conn = db.get_conn()
+    db.init_schema(conn)
+    await capture_all(conn, targets)
     conn.close()
 
 

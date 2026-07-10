@@ -1,7 +1,18 @@
 # What each sense watches. Copy to targets.yaml and edit.
 # Adding a target = adding an entry. Adding a sense = adding a top-level key.
+# Run all configured senses once:  python -m cryptron
 
 telegram:
   - source_id: binance_killers        # your name for it, used everywhere in the DB
     link: "https://t.me/BinanceKillers"
     backfill: 200                     # messages to fetch on the very first run
+
+cmc:
+  - source_id: watchlist              # snapshot market state per run (ephemeral!)
+    symbols: [BTC, ETH, SOL]
+
+twitter:
+  - source_id: sol_mentions           # the attention sense
+    query: "$SOL OR solana"
+    coin: SOL                         # stamped onto captured rows (optional)
+    backfill: 50                      # latest tweets per run; size so runs overlap

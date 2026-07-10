@@ -79,6 +79,11 @@ collector left off per source, so restarts resume with no missed items and no du
 sense tables also carry a uniqueness key on the source's native item id, making capture
 idempotent.)
 
+Senses come in two kinds, and the skeleton covers both. **Streams** (Telegram, Twitter) have
+items with native ids — cursor + unique-on-id give exact resume. **Snapshots** (CMC quotes)
+have no native id: `observed_at` is fetch time and every run appends a new snapshot — this is
+the ephemeral capture §6.4 exists for.
+
 ### Experiments — first-class, not a junction
 
 An experiment is an entity with its own attributes; it *references* the sense-rows it consumed:
