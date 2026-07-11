@@ -255,6 +255,7 @@ comes to mind" stops being a mystery and becomes three access paths:
 | "What else about this coin?" | **Enrich** | all sense rows at `(coin, observed_at ± window)` — incl. ephemeral snapshots captured then | spine |
 | Result contradicts a find | **Belief revision** | the find + its full evidence chain; re-read contradicting vs supporting | spine |
 | Idle / scout returns a candidate | **Rank** | score the candidate against finds that have been *paying* (§10 for-you feed) | vector + confidence |
+| Similar situation found — "what did we do next?" | **Replay** | the thread's beads in order: experiments interleaved with the guidance pivots that redirected them, plus the finds it crystallized into | spine/link-walk |
 
 ### The compounding effect — the point of it all
 
@@ -284,6 +285,16 @@ creature doc). So what the brain retrieves is not an isolated lesson but a **tra
    result taught, where it led.
 3. The brain then **acts as taught in that path**, adapting it to the current case.
 
+**A path's beads are not only experiments — the user's pivots are beads too.** The most
+valuable transitions in the worked trace were guidance: *"check the trend before the
+signal"* is what turned exp-0006 into exp-0007. A replay that omits the pivots replays
+the moves without the coaching that caused them — the path's most instructive edges
+would be silently lost in the chat log. So a lesson that redirected a *live* thread
+carries the address of the transition it caused (`thread_id`, `after_experiment`), and
+replaying a thread returns experiments and pivots **interleaved in investigation
+order**, plus the finds the thread crystallized into. Global lessons (not about any one
+thread) keep no address and ride the playbook as before — the two uses share one row.
+
 This is case-based reasoning over the user's (and later the creature's own) recorded
 investigations. It is also why full-injection shortcuts (dump all guidance into every
 prompt) are only acceptable while memory is tiny: the moment paths accumulate, retrieval
@@ -312,7 +323,9 @@ confidence/status decides what's *trusted* — similarity is an access path, nev
    appended — the find's biography is part of the find.
 4. **Chat-time:** the conversation with the user is itself captured like any sense (a chat log
    in layer 1 — Telegram is both ears and voice), and durable guidance becomes finds marked
-   `provenance: user` with high starting confidence. (Seeding, §8 below.) The reverse direction
+   `provenance: user` with high starting confidence. (Seeding, §8 below.) When the guidance
+   redirected a live thread, the lesson is also stamped with `(thread_id, after_experiment)` —
+   the pivot becomes a walkable bead on that path (§6). The reverse direction
    uses the same machinery: the user's questions ("small coins?", "summarize") compile to the
    §6 retrieval queries, rendered conversationally — chat is the retrieval contract pointed at
    a human.

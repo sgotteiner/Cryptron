@@ -119,6 +119,12 @@ CREATE TABLE IF NOT EXISTS experiment_inputs (
   PRIMARY KEY (experiment_id, source_table, row_id)
 );
 
+-- A lesson that redirected a LIVE thread is a bead on that path (memory_design.md
+-- §6): it carries the address of the exact transition it caused, so replay shows
+-- the pivot where it happened. Global lessons keep NULLs and ride the playbook.
+ALTER TABLE guidance ADD COLUMN IF NOT EXISTS thread_id TEXT REFERENCES threads(id);
+ALTER TABLE guidance ADD COLUMN IF NOT EXISTS after_experiment TEXT REFERENCES experiments(id);
+
 -- ── Memory, layer 2: finds (memory_design.md §4-6) ─────────────────────────
 -- The vault (finds/*.md) is the source of truth; this table is its INDEX —
 -- the query surface for scope-match and vector recall. Rebuildable any time

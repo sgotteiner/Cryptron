@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 
 from .. import db
-from ..memory import finds, recall
+from ..memory import finds, paths, recall
 from . import llm, prompt, tools
 
 MAX_STEPS = 8
@@ -30,7 +30,11 @@ async def run_tool(conn, name: str, args: dict) -> dict:
         if name == "tv_ohlcv":
             return await tools.tv_ohlcv(**args)
         if name == "save_guidance":
-            return tools.save_guidance(conn, **args)
+            return paths.save_guidance(conn, **args)
+        if name == "open_thread":
+            return paths.open_thread(conn, **args)
+        if name == "replay_thread":
+            return paths.replay(conn, **args)
         if name == "record_experiment":
             return await tools.record_experiment(conn, **args)
         if name == "save_find":
@@ -79,7 +83,7 @@ def history(conn, chat_id: str, n: int = 16) -> list:
 
 def system_prompt(conn) -> str:
     """Identity + the playbook: every taught lesson rides along on every call."""
-    lessons = tools.load_guidance(conn)
+    lessons = paths.load_guidance(conn)
     if not lessons:
         return prompt.SYSTEM
     book = "\n".join(f"- {l}" + (f" (why: {w})" if w else "") for l, w in lessons)
