@@ -29,6 +29,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await tools.score(conn, **args)
         if name == "sql":
             return tools.sql(conn, **args)
+        if name == "cmc_lookup":
+            return await tools.cmc_lookup(conn, **args)
         if name == "tv_search":
             return await tools.tv_search(**args)
         if name == "tv_ohlcv":

@@ -45,6 +45,40 @@ async def capture_target(client: httpx.AsyncClient, conn, target: dict) -> int:
     return inserted
 
 
+async def lookup(conn, symbols: list[str]) -> dict:
+    """On-demand market lookup for ANY coin — and capture what was sensed.
+
+    The brain's live CMC hand. Every lookup is also written to sense_cmc
+    (source_id 'lookup'): ephemeral data, saved the moment it is seen.
+    """
+    headers = {"X-CMC_PRO_API_KEY": config.require("CMC_API_KEY")}
+    symbols = [s.upper().lstrip("$") for s in symbols]
+    now = datetime.now(timezone.utc)
+    async with httpx.AsyncClient(headers=headers, timeout=30) as client:
+        resp = await client.get(API, params={"symbol": ",".join(symbols),
+                                             "convert": "USD"})
+        if resp.status_code != 200:
+            return {"error": f"CMC returned {resp.status_code}"}
+        data = resp.json()["data"]
+
+    out, rows = {}, []
+    for s in symbols:
+        coin = data.get(s)
+        if not coin:
+            out[s] = {"error": "unknown to CMC"}
+            continue
+        q = coin["quote"]["USD"]
+        out[s] = {"price": q["price"], "market_cap": q["market_cap"],
+                  "volume_24h": q["volume_24h"],
+                  "change_24h_pct": q["percent_change_24h"],
+                  "rank": coin.get("cmc_rank")}
+        rows.append({"coin": s, "observed_at": now, "source_id": "lookup",
+                     "payload": coin})
+    if rows:
+        db.insert_sense_rows(conn, TABLE, rows)
+    return out
+
+
 async def capture_all(conn, targets: list[dict]) -> None:
     headers = {"X-CMC_PRO_API_KEY": config.require("CMC_API_KEY")}
     async with httpx.AsyncClient(headers=headers, timeout=30) as client:

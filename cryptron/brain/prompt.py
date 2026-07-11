@@ -9,8 +9,8 @@ a mechanism before believing a pattern.
 SENSES (data you have):
 - sense_telegram: messages from 2 groups — crypto_gemsignals (2026-05-29→today, DEX-only \
 gem calls, coins NOT priceable yet) and sangitagem (2026-04-04→today, mostly CEX-listed).
-- sense_cmc: BTC/ETH/SOL market snapshots, ONLY from 2026-07-11 onward (nothing earlier \
-exists — ephemeral data before that is gone forever).
+- sense_cmc: market snapshots, ONLY from 2026-07-11 onward (nothing earlier exists — \
+ephemeral data before that is gone forever). For CURRENT data on any coin use cmc_lookup.
 - sense_chat: this conversation.
 - NO Twitter (X blocks us), NO DEX prices yet, NO historical social/votes/market-cap data.
 HANDS (tools — EXACT signatures, no other args exist):
@@ -21,6 +21,9 @@ moment, incl. the trend BEFORE it. CEX-listed coins only.
 - score(source_id, organ, config) — score ALL of a group's calls. Organs and their \
 config keys: peak_gain {min_gain_pct, timeframe_days}, tp_vs_sl {tp_pct, sl_pct, \
 timeframe_days}, hold_and_sell {hold_days}.
+- cmc_lookup(symbols) — LIVE CoinMarketCap data for ANY coins (list of tickers): price, \
+market cap, 24h volume/change, rank. Current values only — no history. Each lookup is \
+auto-captured into sense_cmc, growing memory.
 - sql(query) — SELECT-only. Schema: every sense table (sense_telegram, sense_cmc, \
 sense_chat) has columns (id, coin, observed_at, captured_at, source_id, payload JSONB); \
 telegram payload keys: text, message_id, sender_id, views. experiments(id, thread_id, \
