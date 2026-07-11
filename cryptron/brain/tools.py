@@ -6,11 +6,10 @@ these are ALL the hands there are — anything else must be honestly refused.
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-from ..config import ROOT
 from ..hands import price, tradingview
 from ..hands.organs import ORGANS
+from ..memory import embed
 from ..senses import cmc
 
 
@@ -127,20 +126,22 @@ def sql(conn, query: str) -> dict:
     return {"rows": [[str(v) for v in r] for r in rows], "count": len(rows)}
 
 
-def record_experiment(conn, hypothesis: str, config: dict, result: dict,
-                      reading: str, thread_id: str | None = None) -> dict:
+async def record_experiment(conn, hypothesis: str, config: dict, result: dict,
+                            reading: str, thread_id: str | None = None,
+                            testing_organ: dict | None = None, sample: str = "in",
+                            market_adjusted: bool = False) -> dict:
     n = conn.execute("SELECT count(*) FROM experiments").fetchone()[0]
     exp_id = f"exp-{n + 1:04d}"
+    try:  # recall spans experiments — but an embed hiccup must not lose the record
+        vec = json.dumps(await embed.embed(
+            f"{hypothesis}\n{reading}\n{json.dumps(result, default=str)}"))
+    except Exception:
+        vec = None  # reindex backfills later
     conn.execute("""
-        INSERT INTO experiments (id, thread_id, hypothesis, config, result, reading, sample)
-        VALUES (%s, %s, %s, %s, %s, %s, 'in')""",
-        (exp_id, thread_id, hypothesis, json.dumps(config), json.dumps(result), reading))
-    return {"recorded": exp_id}
-
-
-def save_find(slug: str, markdown: str) -> dict:
-    slug = re.sub(r"[^a-z0-9-]", "", slug.lower().replace(" ", "-"))[:60]
-    path = Path(ROOT) / "finds"
-    path.mkdir(exist_ok=True)
-    (path / f"{slug}.md").write_text(markdown, encoding="utf-8")
-    return {"saved": f"finds/{slug}.md"}
+        INSERT INTO experiments (id, thread_id, hypothesis, config, testing_organ,
+                                 sample, market_adjusted, result, reading, embedding)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector)""",
+        (exp_id, thread_id, hypothesis, json.dumps(config),
+         json.dumps(testing_organ) if testing_organ else None,
+         sample, market_adjusted, json.dumps(result), reading, vec))
+    return {"recorded": exp_id, "sample": sample, "market_adjusted": market_adjusted}

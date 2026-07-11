@@ -332,11 +332,17 @@ confidence and can be narrowed or killed like anything else).
 ## 9. Deliberately not decided (discovered by running)
 
 - Threshold values (confidence floor, promotion bar, attention spike multiple) — atoms, to be tuned.
-- Embedding model / dimension; chunking of find bodies.
-- Whether finds need their own table mirroring the vault for fast scope queries (likely yes —
-  vault stays the source of truth, DB row is the index).
+- Chunking of find bodies. (Embedding model *was* decided by building: `gemini-embedding-001`
+  at 1536 dims, L2-normalized, one model = one space; a find embeds as
+  statement + mechanism + scope + directive — no chunking needed while finds stay dense.)
+- ~~Whether finds need their own table~~ — decided by building: yes, a `finds` index table
+  (scope + embedding); the vault stays the source of truth and the index is rebuildable
+  from the files at any time (`python -m cryptron.memory`).
 - MAS decomposition (§14) — irrelevant to memory's contracts; any number of agents can share this bloodstream.
 - Exact classification taxonomy for `class:` — grows as classes are *discovered* (memes was discovered, not pre-listed).
+- One seeding note from building: user-seeded priors (§8) start `active` — the §5 promotion
+  gate binds everything of `provenance: brain`, while the user's word is the day-one trust.
+  Priors still narrow and die like anything else.
 
 ---
 

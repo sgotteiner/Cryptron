@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 
 from .. import db
+from ..memory import finds, recall
 from . import llm, prompt, tools
 
 MAX_STEPS = 8
@@ -31,9 +32,17 @@ async def run_tool(conn, name: str, args: dict) -> dict:
         if name == "save_guidance":
             return tools.save_guidance(conn, **args)
         if name == "record_experiment":
-            return tools.record_experiment(conn, **args)
+            return await tools.record_experiment(conn, **args)
         if name == "save_find":
-            return tools.save_find(**args)
+            return await finds.save_find(conn, **args)
+        if name == "update_find":
+            return await finds.update_find(conn, **args)
+        if name == "recall":
+            return await recall.recall(conn, **args)
+        if name == "finds_in_scope":
+            return recall.in_scope(conn, **args)
+        if name == "read_find":
+            return recall.read(conn, **args)
         return {"error": f"no such tool: {name}"}
     except Exception as e:
         return {"error": f"{type(e).__name__}: {e}"}

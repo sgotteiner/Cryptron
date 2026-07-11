@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS threads (
 
 -- Experiments are first-class, not a junction (memory_design.md §3).
 -- The immune system is enforced by schema: sample and market_adjusted are columns.
--- (embedding VECTOR column arrives with the recall milestone — pgvector.)
+-- (embedding VECTOR is ALTERed onto this table below, with the layer-2 section.)
 CREATE TABLE IF NOT EXISTS experiments (
   id              TEXT PRIMARY KEY,          -- 'exp-0001'
   thread_id       TEXT REFERENCES threads(id),
@@ -118,3 +118,25 @@ CREATE TABLE IF NOT EXISTS experiment_inputs (
   row_id        BIGINT NOT NULL,
   PRIMARY KEY (experiment_id, source_table, row_id)
 );
+
+-- ── Memory, layer 2: finds (memory_design.md §4-6) ─────────────────────────
+-- The vault (finds/*.md) is the source of truth; this table is its INDEX —
+-- the query surface for scope-match and vector recall. Rebuildable any time
+-- from the files:  python -m cryptron.memory
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS finds (
+  id         TEXT PRIMARY KEY,       -- 'find-0042' | 'config-0017'
+  kind       TEXT NOT NULL,          -- conclusion | config
+  scope      JSONB NOT NULL,         -- THE ADDRESS: level/domain/class/condition
+  statement  TEXT,
+  confidence REAL,
+  status     TEXT NOT NULL,          -- candidate|active|narrowed|dead (configs: promoted|retired)
+  provenance TEXT,                   -- user | brain
+  body_hash  TEXT,                   -- re-embed only when content changed
+  embedding  VECTOR(1536),           -- gemini-embedding-001, L2-normalized
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Vector recall spans experiments too (§6: "seen this shape before?").
+ALTER TABLE experiments ADD COLUMN IF NOT EXISTS embedding VECTOR(1536);
