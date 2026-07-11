@@ -366,3 +366,12 @@ thread on paper — the meme-attention trace instantiated end-to-end: capture �
 find → retrieval serving the next experiment cheaper. The first slice to build is exactly
 that thread, with **one hand** (Telegram or price), the two systems above, and nothing else.
 Every additional hand scales the same skeleton.
+
+> **Status (2026-07-12): the gate is closed — the core is built and live.** Both systems
+> run (Supabase layer 1 + the finds vault with its rebuildable index), all three access
+> paths are brain tools, the immune system is enforced in code, and paths replay with the
+> user's pivots as beads. The creature is being raised the way §7.4 predicted: the user
+> deliberately asks for checks it lacks hands for, the logs surface the gap, the hand is
+> built — teaching and developing are the same conversation. What remains is not memory:
+> the autonomous loop (scheduled capture + self-driven threads) plugs into this bloodstream
+> unchanged.
