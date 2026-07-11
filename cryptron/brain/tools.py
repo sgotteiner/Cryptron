@@ -1,0 +1,111 @@
+"""The brain's tools: what Cryptron can actually DO during the dialogue.
+
+Every tool returns a compact JSON-able dict. The embodiment principle rules:
+these are ALL the hands there are — anything else must be honestly refused.
+"""
+import json
+import re
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from ..config import ROOT
+from ..hands import price
+from ..hands.organs import ORGANS
+
+TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
+SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
+
+
+def sources(conn) -> dict:
+    rows = conn.execute("""
+        SELECT source_id, count(*), min(observed_at)::date, max(observed_at)::date
+        FROM sense_telegram GROUP BY source_id""").fetchall()
+    return {"telegram": [{"source_id": r[0], "messages": r[1],
+                          "from": str(r[2]), "to": str(r[3])} for r in rows]}
+
+
+def calls(conn, source_id: str, min_mentions: int = 3) -> dict:
+    rows = conn.execute("""
+        SELECT observed_at, payload->>'text' FROM sense_telegram
+        WHERE source_id = %s ORDER BY observed_at""", (source_id,)).fetchall()
+    first, count = {}, {}
+    for at, text in rows:
+        for t in set(TICKER_RE.findall(text or "")) - SKIP:
+            first.setdefault(t, at)
+            count[t] = count.get(t, 0) + 1
+    out = [{"ticker": t, "first_seen": first[t].isoformat(), "mentions": count[t]}
+           for t in sorted(first, key=lambda x: first[x]) if count[t] >= min_mentions]
+    return {"source_id": source_id, "calls": out}
+
+
+async def price_summary(coin: str, since_iso: str, days_before: float = 7,
+                        days_after: float = 14) -> dict:
+    since = datetime.fromisoformat(since_iso).replace(tzinfo=timezone.utc)
+    start = since - timedelta(days=days_before)
+    data = await price.fetch_ohlcv(coin, "1h", since=start,
+                                   days=days_before + days_after)
+    if not data:
+        return {"coin": coin, "error": "not listed on any exchange I can read (CEX only)"}
+    before = [c for c in data["candles"] if c[0] < since.timestamp() * 1000]
+    after = [c for c in data["candles"] if c[0] >= since.timestamp() * 1000]
+    if not after:
+        return {"coin": coin, "error": "no candles after that moment"}
+    entry = after[0][4]
+    out = {"coin": data["symbol"], "exchange": data["exchange"], "entry": entry,
+           "after": {"peak_pct": round((max(c[2] for c in after) / entry - 1) * 100, 1),
+                     "low_pct": round((min(c[3] for c in after) / entry - 1) * 100, 1),
+                     "close_pct": round((after[-1][4] / entry - 1) * 100, 1)}}
+    if before:
+        out["trend_before"] = {
+            "days": days_before,
+            "change_pct": round((entry / before[0][4] - 1) * 100, 1)}
+    return out
+
+
+async def score(conn, source_id: str, organ: str, config: dict) -> dict:
+    if organ not in ORGANS:
+        return {"error": f"unknown organ; available: {list(ORGANS)}"}
+    per_call, results = [], []
+    for c in calls(conn, source_id)["calls"]:
+        at = datetime.fromisoformat(c["first_seen"])
+        data = await price.fetch_ohlcv(c["ticker"], "1h", since=at,
+                                       days=config.get("timeframe_days", 14) or 14)
+        if not data:
+            per_call.append({"ticker": c["ticker"], "skipped": "not on CEX"})
+            continue
+        r = ORGANS[organ](data["candles"], data["candles"][0][4], config)
+        if r.win is not None:
+            results.append(r)
+        per_call.append({"ticker": c["ticker"], "win": r.win, "pnl_pct": r.pnl_pct})
+    wins = sum(1 for r in results if r.win)
+    return {"organ": organ, "config": config, "n": len(results),
+            "winrate": round(wins / len(results), 2) if results else None,
+            "avg_pnl_pct": round(sum(r.pnl_pct for r in results) / len(results), 1)
+            if results else None, "per_call": per_call}
+
+
+def sql(conn, query: str) -> dict:
+    q = query.strip().rstrip(";")
+    if not q.lower().startswith("select"):
+        return {"error": "read-only: SELECT queries only"}
+    rows = conn.execute(q + (" LIMIT 50" if "limit" not in q.lower() else "")).fetchall()
+    return {"rows": [[str(v) for v in r] for r in rows], "count": len(rows)}
+
+
+def record_experiment(conn, hypothesis: str, config: dict, result: dict,
+                      reading: str, thread_id: str | None = None) -> dict:
+    n = conn.execute("SELECT count(*) FROM experiments").fetchone()[0]
+    exp_id = f"exp-{n + 1:04d}"
+    conn.execute("""
+        INSERT INTO experiments (id, thread_id, hypothesis, config, result, reading, sample)
+        VALUES (%s, %s, %s, %s, %s, %s, 'in')""",
+        (exp_id, thread_id, hypothesis, json.dumps(config), json.dumps(result), reading))
+    return {"recorded": exp_id}
+
+
+def save_find(slug: str, markdown: str) -> dict:
+    slug = re.sub(r"[^a-z0-9-]", "", slug.lower().replace(" ", "-"))[:60]
+    path = Path(ROOT) / "finds"
+    path.mkdir(exist_ok=True)
+    (path / f"{slug}.md").write_text(markdown, encoding="utf-8")
+    return {"saved": f"finds/{slug}.md"}

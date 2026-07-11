@@ -50,6 +50,19 @@ CREATE INDEX IF NOT EXISTS idx_sense_twitter_source_time
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_twitter_tweet
   ON sense_twitter (source_id, ((payload->>'tweet_id')::bigint));
 
+-- The dialogue is a sense too (creature doc §11): every user/assistant turn
+-- is captured — the user's guidance is evidence with provenance.
+CREATE TABLE IF NOT EXISTS sense_chat (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,
+  observed_at TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- telegram chat id
+  payload     JSONB NOT NULL         -- {role, text, message_id}
+);
+CREATE INDEX IF NOT EXISTS idx_sense_chat_source_time
+  ON sense_chat (source_id, observed_at);
+
 -- Sense-layer plumbing: where each collector left off, so restarts resume
 -- with no missed items and no duplicates.
 CREATE TABLE IF NOT EXISTS sense_cursors (
