@@ -81,7 +81,16 @@ async def main() -> None:
     token = config.require("TELEGRAM_BOT_TOKEN")
     chat_id = config.require("TELEGRAM_CHAT_ID")
     api = f"https://api.telegram.org/bot{token}"
-    conn = db.get_conn()
+    conn = None
+    for attempt in range(5):  # transient network blips must not kill the ear
+        try:
+            conn = db.get_conn()
+            break
+        except Exception as e:
+            print(f"db connect failed ({e}); retry {attempt + 1}/5", flush=True)
+            await asyncio.sleep(10)
+    if conn is None:
+        raise SystemExit("could not reach memory after 5 attempts")
     db.init_schema(conn)
     offset = db.get_cursor(conn, "chat", chat_id)
     offset = int(offset) + 1 if offset else None

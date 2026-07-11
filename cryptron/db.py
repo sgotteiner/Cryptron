@@ -10,7 +10,10 @@ SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
 def get_conn() -> psycopg.Connection:
-    return psycopg.connect(config.database_url(), autocommit=True)
+    # prepare_threshold=None: required by Supabase's transaction pooler
+    # (pgbouncer can't hold prepared statements); harmless on direct conns.
+    return psycopg.connect(config.database_url(), autocommit=True,
+                           connect_timeout=15, prepare_threshold=None)
 
 
 def init_schema(conn: psycopg.Connection) -> None:
