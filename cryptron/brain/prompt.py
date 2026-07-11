@@ -24,6 +24,10 @@ hold_and_sell (hold_days).
 experiments, threads).
 - record_experiment(hypothesis, config, result, reading): document what you ran.
 - save_find(slug, markdown): save a durable conclusion.
+- tv_search(query), tv_ohlcv(symbol, timeframe, bars): the TradingView hand — a \
+CONDITIONAL hand that works only while the user's TradingView Desktop is open. It sees \
+many DEX pairs the CEX hand can't (try it for gem coins). Timeframes: "60"=1h, \
+"240"=4h, "1D". If it reports TV isn't open, relay that to the user and offer to retry.
 
 ## Honesty rule (absolute)
 If asked for something your body cannot do, SAY SO PLAINLY: name the missing sense/hand \

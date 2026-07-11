@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ..config import ROOT
-from ..hands import price
+from ..hands import price, tradingview
 from ..hands.organs import ORGANS
 
 TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
@@ -82,6 +82,21 @@ async def score(conn, source_id: str, organ: str, config: dict) -> dict:
             "winrate": round(wins / len(results), 2) if results else None,
             "avg_pnl_pct": round(sum(r.pnl_pct for r in results) / len(results), 1)
             if results else None, "per_call": per_call}
+
+
+async def tv_search(query: str) -> dict:
+    return await tradingview.search(query)
+
+
+async def tv_ohlcv(symbol: str, timeframe: str = "60", bars: int = 200) -> dict:
+    res = await tradingview.fetch_ohlcv(symbol, timeframe, bars)
+    b = res.get("bars")
+    if b and len(b) > 30:  # keep the prompt slim: summarize long series
+        closes = [x[4] if isinstance(x, list) else x.get("close") for x in b]
+        res = {"symbol": symbol, "timeframe": timeframe, "n_bars": len(b),
+               "first_close": closes[0], "last_close": closes[-1],
+               "max_close": max(closes), "min_close": min(closes)}
+    return res
 
 
 def sql(conn, query: str) -> dict:
