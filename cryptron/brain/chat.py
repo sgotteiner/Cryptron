@@ -55,15 +55,29 @@ def history(conn, chat_id: str, n: int = 16) -> list:
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
 
+def extract_action(raw: str) -> dict | None:
+    """Find the JSON action even when the model wraps it in prose."""
+    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    decoder = json.JSONDecoder()
+    idx = 0
+    while (start := raw.find("{", idx)) != -1:
+        try:
+            obj, _ = decoder.raw_decode(raw[start:])
+            if isinstance(obj, dict) and ("tool" in obj or "reply" in obj):
+                return obj
+        except json.JSONDecodeError:
+            pass
+        idx = start + 1
+    return None
+
+
 async def answer(conn, chat_id: str, user_text: str) -> str:
     save_turn(conn, chat_id, "user", user_text)
     messages = history(conn, chat_id)
     for _ in range(MAX_STEPS):
         raw = (await llm.complete(prompt.SYSTEM, messages)).strip()
-        raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        try:
-            action = json.loads(raw)
-        except json.JSONDecodeError:
+        action = extract_action(raw)
+        if action is None:
             reply = raw  # model spoke plain text — accept it
             break
         if "reply" in action:
