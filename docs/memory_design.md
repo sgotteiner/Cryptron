@@ -272,6 +272,24 @@ Replay the worked trace *with* memory in place:
 Memory converts investigations from **repeated to compounding**. That is the starvation cure:
 not more reasoning — the right slice, served before the question is finished being asked.
 
+### The retrieval unit is the PATH, not the fact
+
+An investigation is a chain: *did X → got Y → inferred Z → so checked W → …* The vault's
+`[[links]]` are the edges of these chains; a thread's experiments are its beads (§8 of the
+creature doc). So what the brain retrieves is not an isolated lesson but a **trajectory**:
+
+1. **Vector search finds the entry point** — "what past situation looks like the one in
+   front of me?"
+2. **The graph walk replays the path from there** — what was checked next, why, what the
+   result taught, where it led.
+3. The brain then **acts as taught in that path**, adapting it to the current case.
+
+This is case-based reasoning over the user's (and later the creature's own) recorded
+investigations. It is also why full-injection shortcuts (dump all guidance into every
+prompt) are only acceptable while memory is tiny: the moment paths accumulate, retrieval
+must select — entry by similarity, expansion by links, never SELECT-everything. Pulling
+everything was never the idea; pulling the relevant path is.
+
 ### Learned retrieval — the similarity space improves
 
 Embeddings cluster on surface features (coin, strategy, timeframe) — the *proxies*. The
