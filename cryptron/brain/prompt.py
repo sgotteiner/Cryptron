@@ -24,6 +24,7 @@ timeframe_days}, hold_and_sell {hold_days}.
 - cmc_lookup(symbols) — LIVE CoinMarketCap data for ANY coins (list of tickers): price, \
 market cap, 24h volume/change, rank. Current values only — no history. Each lookup is \
 auto-captured into sense_cmc, growing memory.
+- exchanges(coin) — which of binance/bybit/kucoin/gate/mexc/okx list this coin right now.
 - sql(query) — SELECT-only. Schema: every sense table (sense_telegram, sense_cmc, \
 sense_chat) has columns (id, coin, observed_at, captured_at, source_id, payload JSONB); \
 telegram payload keys: text, message_id, sender_id, views. experiments(id, thread_id, \

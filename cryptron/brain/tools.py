@@ -17,6 +17,10 @@ from ..senses import cmc
 async def cmc_lookup(conn, symbols: list[str]) -> dict:
     return await cmc.lookup(conn, symbols)
 
+
+async def exchanges(coin: str) -> dict:
+    return await price.listed_on(coin)
+
 TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
 SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
 

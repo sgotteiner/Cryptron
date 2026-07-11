@@ -88,6 +88,24 @@ async def fetch_ohlcv(
     return None
 
 
+async def listed_on(coin: str) -> dict:
+    """Which of our exchanges list this coin (checked live, in parallel)."""
+    symbol = normalize_symbol(coin)
+
+    async def probe(name):
+        ex = await _get_exchange(name)
+        try:
+            t = await ex.fetch_ticker(symbol)
+            return name, t.get("last")
+        except Exception:
+            return None
+
+    hits = [r for r in await asyncio.gather(*(probe(n) for n in EXCHANGE_PRIORITY)) if r]
+    return {"symbol": symbol,
+            "listed_on": [{"exchange": n, "last_price": p} for n, p in hits],
+            "not_listed_anywhere_we_read": not hits}
+
+
 if __name__ == "__main__":
     async def _demo():
         data = await fetch_ohlcv("BTC", "1h", days=2)
