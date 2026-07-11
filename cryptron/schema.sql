@@ -73,6 +73,17 @@ CREATE TABLE IF NOT EXISTS sense_cursors (
   PRIMARY KEY (sense, source_id)
 );
 
+-- The playbook: lessons the user taught (or the brain inferred) that must be
+-- applied automatically to every future investigation. Ask once -> learned.
+CREATE TABLE IF NOT EXISTS guidance (
+  id         SERIAL PRIMARY KEY,
+  lesson     TEXT NOT NULL,        -- the directive, stated generally
+  why        TEXT,                 -- the mechanism/reason behind it
+  provenance TEXT NOT NULL DEFAULT 'user',  -- user | brain
+  active     BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- The unit of focus (creature doc §8).
 CREATE TABLE IF NOT EXISTS threads (
   id       TEXT PRIMARY KEY,

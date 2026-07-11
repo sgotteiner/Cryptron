@@ -21,6 +21,17 @@ async def cmc_lookup(conn, symbols: list[str]) -> dict:
 async def exchanges(coin: str) -> dict:
     return await price.listed_on(coin)
 
+
+def save_guidance(conn, lesson: str, why: str = "", provenance: str = "user") -> dict:
+    conn.execute("INSERT INTO guidance (lesson, why, provenance) VALUES (%s, %s, %s)",
+                 (lesson, why, provenance))
+    return {"learned": lesson}
+
+
+def load_guidance(conn) -> list:
+    return conn.execute("""
+        SELECT lesson, why FROM guidance WHERE active ORDER BY id LIMIT 40""").fetchall()
+
 TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
 SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
 

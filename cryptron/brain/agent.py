@@ -28,6 +28,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await tools.tv_search(**args)
         if name == "tv_ohlcv":
             return await tools.tv_ohlcv(**args)
+        if name == "save_guidance":
+            return tools.save_guidance(conn, **args)
         if name == "record_experiment":
             return tools.record_experiment(conn, **args)
         if name == "save_find":
@@ -66,11 +68,22 @@ def history(conn, chat_id: str, n: int = 16) -> list:
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
 
+def system_prompt(conn) -> str:
+    """Identity + the playbook: every taught lesson rides along on every call."""
+    lessons = tools.load_guidance(conn)
+    if not lessons:
+        return prompt.SYSTEM
+    book = "\n".join(f"- {l}" + (f" (why: {w})" if w else "") for l, w in lessons)
+    return (f"{prompt.SYSTEM}\n\n## THE PLAYBOOK — lessons your user taught you. "
+            f"Apply these AUTOMATICALLY in every investigation, unasked:\n{book}")
+
+
 async def answer(conn, chat_id: str, user_text: str) -> str:
     save_turn(conn, chat_id, "user", user_text)
     messages = history(conn, chat_id)
+    system = system_prompt(conn)
     for _ in range(MAX_STEPS):
-        raw = (await llm.complete(prompt.SYSTEM, messages)).strip()
+        raw = (await llm.complete(system, messages)).strip()
         action = extract_action(raw)
         if action is None:
             reply = raw  # model spoke plain text — accept it
