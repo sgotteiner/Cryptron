@@ -27,6 +27,11 @@ def save_guidance(conn, lesson: str, why: str = "", provenance: str = "user",
                   thread_id: str | None = None,
                   after_experiment: str | None = None) -> dict:
     """Ask once -> learned. Anchored (thread_id, after_experiment) = a pivot bead."""
+    dup = conn.execute("""
+        SELECT id FROM guidance WHERE active AND lower(lesson) = lower(%s)""",
+        (lesson,)).fetchone()
+    if dup:  # the playbook holds one truth per lesson
+        return {"already_known": lesson, "note": "lesson was in the playbook already"}
     conn.execute("""
         INSERT INTO guidance (lesson, why, provenance, thread_id, after_experiment)
         VALUES (%s, %s, %s, %s, %s)""",
