@@ -6,7 +6,8 @@ skipped. One sense failing must not stop the others from sensing.
 import asyncio
 
 from . import config, db
-from .senses import cmc, dex_trending, feargreed, news, reddit, telegram, twitter
+from .senses import (cmc, coingecko, dex_trending, feargreed, news, reddit,
+                     telegram, twitter)
 
 SENSES = {
     telegram.SENSE: telegram,
@@ -16,6 +17,7 @@ SENSES = {
     news.SENSE: news,
     feargreed.SENSE: feargreed,
     dex_trending.SENSE: dex_trending,
+    coingecko.SENSE: coingecko,
 }
 
 

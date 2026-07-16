@@ -28,6 +28,10 @@ news:                                 # headlines via RSS, no key
 feargreed:                            # market regime; first run backfills full history
   - source_id: alternative.me
 
+coingecko:                            # per-coin sentiment snapshots (keyless, slow rate)
+  - source_id: watchlist
+    symbols: [BTC, ETH, SOL]
+
 dex_trending:                         # GeckoTerminal trending pools; no key (gem radar)
   - source_id: trending-all           # across all networks
   - source_id: trending-solana

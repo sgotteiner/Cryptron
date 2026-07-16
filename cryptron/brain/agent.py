@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from .. import db
 from ..hands import dex
 from ..memory import finds, paths, recall
+from ..senses import coingecko
 from . import llm, prompt, social, tools
 
 MAX_STEPS = 8
@@ -34,6 +35,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await dex.trending(conn, **args)
         if name == "mentions":
             return social.mentions(conn, **args)
+        if name == "sentiment":
+            return await coingecko.lookup(conn, **args)
         if name == "fear_greed":
             return social.fear_greed(conn)
         if name == "tv_search":

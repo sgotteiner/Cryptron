@@ -190,6 +190,22 @@ CREATE TABLE IF NOT EXISTS sense_feargreed (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_feargreed_day
   ON sense_feargreed (source_id, observed_at);
 
+-- CoinGecko is a snapshot sense: per-coin crowd sentiment (bullish/bearish
+-- votes, watchlist users, community size). Votes are ephemeral — captured on
+-- every lookup; history exists only from the day capture started.
+CREATE TABLE IF NOT EXISTS sense_coingecko (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- the symbol; known natively here
+  observed_at TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- 'lookup' | watchlist name
+  payload     JSONB NOT NULL         -- sentiment votes, watchlist, community
+);
+CREATE INDEX IF NOT EXISTS idx_sense_coingecko_coin_time
+  ON sense_coingecko (coin, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_coingecko_snapshot
+  ON sense_coingecko (source_id, coin, observed_at);
+
 -- DEX snapshots: every GeckoTerminal lookup AND trending-pools poll is
 -- captured (price/liquidity/fdv of gem pools, and WHICH pools the crowd is
 -- piling into right now, is exactly the ephemeral data §6.4 exists for).
