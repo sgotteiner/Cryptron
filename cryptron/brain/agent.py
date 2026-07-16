@@ -3,8 +3,9 @@ import json
 from datetime import datetime, timezone
 
 from .. import db
+from ..hands import dex
 from ..memory import finds, paths, recall
-from . import llm, prompt, tools
+from . import llm, prompt, social, tools
 
 MAX_STEPS = 8
 
@@ -25,6 +26,14 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await tools.cmc_lookup(conn, **args)
         if name == "exchanges":
             return await tools.exchanges(**args)
+        if name == "dex_search":
+            return await dex.search(conn, **args)
+        if name == "dex_price_summary":
+            return await dex.price_summary(conn, **args)
+        if name == "mentions":
+            return social.mentions(conn, **args)
+        if name == "fear_greed":
+            return social.fear_greed(conn)
         if name == "tv_search":
             return await tools.tv_search(**args)
         if name == "tv_ohlcv":

@@ -146,3 +146,76 @@ CREATE TABLE IF NOT EXISTS finds (
 
 -- Vector recall spans experiments too (§6: "seen this shape before?").
 ALTER TABLE experiments ADD COLUMN IF NOT EXISTS embedding VECTOR(1536);
+
+-- ── The sentiment/attention senses (all free) ──────────────────────────────
+
+-- Reddit is a stream sense: posts have native ids (fullnames like 't3_abc').
+CREATE TABLE IF NOT EXISTS sense_reddit (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- NULL at capture; enricher work
+  observed_at TIMESTAMPTZ NOT NULL,  -- post creation time
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- which subreddit watch
+  payload     JSONB NOT NULL         -- post_id, title, selftext, score, num_comments…
+);
+CREATE INDEX IF NOT EXISTS idx_sense_reddit_source_time
+  ON sense_reddit (source_id, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_reddit_post
+  ON sense_reddit (source_id, (payload->>'post_id'));
+
+-- News is a stream sense over RSS feeds: items have native guids/links.
+CREATE TABLE IF NOT EXISTS sense_news (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,
+  observed_at TIMESTAMPTZ NOT NULL,  -- published time
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- which feed
+  payload     JSONB NOT NULL         -- item_id, title, summary, link
+);
+CREATE INDEX IF NOT EXISTS idx_sense_news_source_time
+  ON sense_news (source_id, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_news_item
+  ON sense_news (source_id, (payload->>'item_id'));
+
+-- CryptoPanic is a stream sense: aggregated crypto news WITH community
+-- bullish/bearish votes, per-coin. Free developer token required.
+CREATE TABLE IF NOT EXISTS sense_cryptopanic (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- stamped when exactly one currency is attached
+  observed_at TIMESTAMPTZ NOT NULL,  -- published time
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- which filter watch (hot/rising/…)
+  payload     JSONB NOT NULL         -- id, title, votes, currencies…
+);
+CREATE INDEX IF NOT EXISTS idx_sense_cryptopanic_coin_time
+  ON sense_cryptopanic (coin, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_cryptopanic_item
+  ON sense_cryptopanic (source_id, (payload->>'id'));
+
+-- Fear & Greed (alternative.me) publishes one index value per day and serves
+-- FULL history — backfillable, deduped on the value's own timestamp.
+CREATE TABLE IF NOT EXISTS sense_feargreed (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- always NULL: market-wide regime
+  observed_at TIMESTAMPTZ NOT NULL,  -- the index day
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,
+  payload     JSONB NOT NULL         -- value, classification
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_feargreed_day
+  ON sense_feargreed (source_id, observed_at);
+
+-- DEX snapshots: every GeckoTerminal lookup is captured (price/liquidity/fdv
+-- of gem pools is exactly the ephemeral data §6.4 exists for).
+CREATE TABLE IF NOT EXISTS sense_dex (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT,                  -- the searched symbol
+  observed_at TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  source_id   TEXT NOT NULL,         -- 'lookup'
+  payload     JSONB NOT NULL         -- pool: network, address, price, liquidity, fdv…
+);
+CREATE INDEX IF NOT EXISTS idx_sense_dex_coin_time
+  ON sense_dex (coin, observed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sense_dex_snapshot
+  ON sense_dex (source_id, coin, observed_at, (payload->>'pool_id'));

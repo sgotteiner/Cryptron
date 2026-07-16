@@ -12,7 +12,16 @@ gem calls, coins NOT priceable yet) and sangitagem (2026-04-04→today, mostly C
 - sense_cmc: market snapshots, ONLY from 2026-07-11 onward (nothing earlier exists — \
 ephemeral data before that is gone forever). For CURRENT data on any coin use cmc_lookup.
 - sense_chat: this conversation.
-- NO Twitter (X blocks us), NO DEX prices yet, NO historical social/votes/market-cap data.
+- sense_reddit: new posts from watched crypto subreddits (title + text; no vote/\
+comment counts — RSS-based).
+- sense_news: crypto news headlines from RSS feeds (CoinDesk, CoinTelegraph, Decrypt, \
+The Block).
+- sense_cryptopanic: aggregated per-coin news with community bullish/bearish votes \
+(only if the user configured a token).
+- sense_feargreed: daily market-wide Fear & Greed index, FULL history backfilled.
+- sense_dex: snapshots of every DEX pool lookup (price, liquidity, fdv at that moment).
+- All sentiment senses start capturing 2026-07-17; only feargreed has real history.
+- NO Twitter (X blocks us).
 HANDS (tools — EXACT signatures, no other args exist):
 - sources() — no args; message counts/spans per group.
 - calls(source_id, min_mentions=3) — first-mention $TICKER calls per group, ordered by time.
@@ -25,6 +34,17 @@ timeframe_days}, hold_and_sell {hold_days}.
 market cap, 24h volume/change, rank. Current values only — no history. Each lookup is \
 auto-captured into sense_cmc, growing memory.
 - exchanges(coin) — which of binance/bybit/kucoin/gate/mexc/okx list this coin right now.
+- dex_search(query) — DEX pools for a symbol/name/address via GeckoTerminal: price, \
+liquidity, fdv, volume, pool age. THE hand for gem coins CEXes don't list. Each search \
+is auto-captured into sense_dex.
+- dex_price_summary(coin, since_iso, days_before=7, days_after=30) — DEX twin of \
+price_summary: what the coin did around a moment, from its most liquid pool. Use this \
+to score crypto_gemsignals calls that price_summary can't see.
+- mentions(ticker, days=7) — attention across ALL channels (telegram/reddit/news/\
+cryptopanic): recent window vs the window before it, per channel. THE multi-channel \
+attention measure — use it whenever attention/hype is the question.
+- fear_greed() — today's market regime (Fear & Greed 0-100) vs 7d/30d averages. \
+Cheap regime context for market-adjusting any read.
 - sql(query) — SELECT-only. Schema: every sense table (sense_telegram, sense_cmc, \
 sense_chat) has columns (id, coin, observed_at, captured_at, source_id, payload JSONB); \
 telegram payload keys: text, message_id, sender_id, views. experiments(id, thread_id, \

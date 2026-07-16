@@ -16,3 +16,18 @@ twitter:
     query: "$SOL OR solana"
     coin: SOL                         # stamped onto captured rows (optional)
     backfill: 50                      # latest tweets per run; size so runs overlap
+
+reddit:                               # attention sense; public JSON, no key
+  - source_id: cryptocurrency
+    subreddit: CryptoCurrency
+
+news:                                 # headlines via RSS, no key
+  - source_id: cointelegraph
+    url: "https://cointelegraph.com/rss"
+
+feargreed:                            # market regime; first run backfills full history
+  - source_id: alternative.me
+
+cryptopanic:                          # per-coin news + crowd votes; free token in .env
+  - source_id: hot
+    filter: hot                       # hot | rising | bullish | bearish | important
