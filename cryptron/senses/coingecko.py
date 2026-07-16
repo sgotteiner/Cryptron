@@ -70,10 +70,14 @@ async def capture_all(conn, targets: list[dict]) -> None:
     for target in targets:
         for symbol in target["symbols"]:
             res = await lookup(conn, symbol)
+            if "rate limit" in str(res.get("error", "")):
+                await asyncio.sleep(65)  # cool off once, retry once
+                res = await lookup(conn, symbol)
             ok = "error" not in res
             print(f"{target['source_id']}: {symbol} "
-                  f"{'captured' if ok else 'failed (' + res['error'] + ')'}")
-            await asyncio.sleep(7)  # keyless budget: stay under ~10 calls/min
+                  f"{'captured' if ok else 'failed (' + res['error'] + ')'}",
+                  flush=True)
+            await asyncio.sleep(25)  # keyless budget ~10 calls/min, 2 per lookup
 
 
 async def main() -> None:
