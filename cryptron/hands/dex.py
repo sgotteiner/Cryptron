@@ -49,6 +49,24 @@ async def search(conn, query: str, top: int = 5) -> dict:
     return {"query": query, "pools": pools}
 
 
+async def trending(conn, network: str | None = None, top: int = 10) -> dict:
+    """Currently-trending DEX pools — the gem radar. Captured like any lookup."""
+    path = f"/networks/{network}/trending_pools" if network else "/networks/trending_pools"
+    now = datetime.now(timezone.utc)
+    async with httpx.AsyncClient(headers=UA, timeout=30) as client:
+        resp = await client.get(f"{API}{path}")
+        if resp.status_code != 200:
+            return {"error": f"GeckoTerminal returned {resp.status_code}"}
+        pools = [_pool_summary(p) for p in resp.json()["data"][:top]]
+
+    source_id = f"trending-{network or 'all'}"
+    db.insert_sense_rows(conn, "sense_dex", [
+        {"coin": (p["name"] or "").split("/")[0].strip().lstrip("$") or None,
+         "observed_at": now, "source_id": source_id, "payload": p}
+        for p in pools])
+    return {"network": network or "all", "pools": pools}
+
+
 async def fetch_ohlcv(network: str, address: str, timeframe: str = "hour",
                       before: datetime | None = None, limit: int = 1000) -> list:
     """Candles for one pool, ascending [unix_sec, o, h, l, c, volume]."""

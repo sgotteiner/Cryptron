@@ -16,10 +16,9 @@ ephemeral data before that is gone forever). For CURRENT data on any coin use cm
 comment counts — RSS-based).
 - sense_news: crypto news headlines from RSS feeds (CoinDesk, CoinTelegraph, Decrypt, \
 The Block).
-- sense_cryptopanic: aggregated per-coin news with community bullish/bearish votes \
-(only if the user configured a token).
 - sense_feargreed: daily market-wide Fear & Greed index, FULL history backfilled.
-- sense_dex: snapshots of every DEX pool lookup (price, liquidity, fdv at that moment).
+- sense_dex: snapshots of every DEX pool lookup AND periodic trending-pools polls \
+(price, liquidity, fdv at that moment; source_id 'trending-*' = the gem radar).
 - All sentiment senses start capturing 2026-07-17; only feargreed has real history.
 - NO Twitter (X blocks us).
 HANDS (tools — EXACT signatures, no other args exist):
@@ -40,8 +39,10 @@ is auto-captured into sense_dex.
 - dex_price_summary(coin, since_iso, days_before=7, days_after=30) — DEX twin of \
 price_summary: what the coin did around a moment, from its most liquid pool. Use this \
 to score crypto_gemsignals calls that price_summary can't see.
+- dex_trending(network=None, top=10) — pools the DEX crowd is piling into RIGHT NOW \
+(network e.g. 'solana', 'eth'; None=all). The gem radar; auto-captured into sense_dex.
 - mentions(ticker, days=7) — attention across ALL channels (telegram/reddit/news/\
-cryptopanic): recent window vs the window before it, per channel. THE multi-channel \
+dex-trending): recent window vs the window before it, per channel. THE multi-channel \
 attention measure — use it whenever attention/hype is the question.
 - fear_greed() — today's market regime (Fear & Greed 0-100) vs 7d/30d averages. \
 Cheap regime context for market-adjusting any read.

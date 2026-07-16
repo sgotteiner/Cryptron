@@ -30,6 +30,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await dex.search(conn, **args)
         if name == "dex_price_summary":
             return await dex.price_summary(conn, **args)
+        if name == "dex_trending":
+            return await dex.trending(conn, **args)
         if name == "mentions":
             return social.mentions(conn, **args)
         if name == "fear_greed":

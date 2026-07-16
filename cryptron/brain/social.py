@@ -2,7 +2,7 @@
 
 mentions() is the multi-channel attention measure find-0042's directive asks
 for (channels >= 2, vs baseline): one call counts a ticker across telegram,
-reddit, news and cryptopanic, split into a recent window vs the period before.
+reddit, news and DEX-trending, split into a recent window vs the period before.
 """
 import re
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ CHANNELS = {
     "sense_telegram": ["text"],
     "sense_reddit": ["title", "selftext"],
     "sense_news": ["title", "summary"],
-    "sense_cryptopanic": ["title"],
+    "sense_dex": ["name"],  # trending/lookup snapshots: on-chain attention
 }
 
 

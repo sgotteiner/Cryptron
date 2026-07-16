@@ -28,6 +28,7 @@ news:                                 # headlines via RSS, no key
 feargreed:                            # market regime; first run backfills full history
   - source_id: alternative.me
 
-cryptopanic:                          # per-coin news + crowd votes; free token in .env
-  - source_id: hot
-    filter: hot                       # hot | rising | bullish | bearish | important
+dex_trending:                         # GeckoTerminal trending pools; no key (gem radar)
+  - source_id: trending-all           # across all networks
+  - source_id: trending-solana
+    network: solana                   # or eth, base, bsc, ...
