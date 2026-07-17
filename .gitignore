@@ -26,3 +26,4 @@ targets.yaml
 *.cookies
 .mcp.json
 twitter_accounts.db
+logs/

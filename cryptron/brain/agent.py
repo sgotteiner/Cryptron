@@ -1,12 +1,11 @@
 """The reasoning loop: user message -> LLM + tools -> reply, all captured."""
 import json
-from datetime import datetime, timezone
 
-from .. import db
 from ..hands import background, dex, dex_price
+from ..log import log
 from ..memory import finds, paths, recall
 from ..senses import coingecko
-from . import llm, outcomes, prompt, social, tools
+from . import llm, outcomes, reflex, social, tools, turns
 
 MAX_STEPS = 12
 
@@ -70,6 +69,17 @@ async def run_tool(conn, name: str, args: dict) -> dict:
         return {"error": f"{type(e).__name__}: {e}"}
 
 
+async def call_tool(conn, name: str, args: dict) -> dict:
+    """run_tool + the logbook: args in, result or FAILURE out — always visible."""
+    log("tool", f"{name} {json.dumps(args, default=str)}")
+    result = await run_tool(conn, name, args)
+    if isinstance(result, dict) and result.get("error"):
+        log("TOOL-FAIL", f"{name}: {result['error']}")
+    else:
+        log("result", json.dumps(result, default=str)[:800])
+    return result
+
+
 def extract_action(raw: str) -> dict | None:
     """Find the JSON action even when the model wraps it in prose."""
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
@@ -86,49 +96,39 @@ def extract_action(raw: str) -> dict | None:
     return None
 
 
-def save_turn(conn, chat_id: str, role: str, text: str, message_id=None) -> None:
-    db.insert_sense_rows(conn, "sense_chat", [{
-        "coin": None, "observed_at": datetime.now(timezone.utc), "source_id": chat_id,
-        "payload": {"role": role, "text": text, "message_id": message_id}}])
-
-
-def history(conn, chat_id: str, n: int = 16) -> list:
-    rows = conn.execute("""
-        SELECT payload->>'role', payload->>'text' FROM sense_chat
-        WHERE source_id = %s ORDER BY id DESC LIMIT %s""", (chat_id, n)).fetchall()
-    return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
-
-
-def system_prompt(conn) -> str:
-    """Identity + the playbook: every taught lesson rides along on every call."""
-    lessons = paths.load_guidance(conn)
-    if not lessons:
-        return prompt.SYSTEM
-    book = "\n".join(f"- {l}" + (f" (why: {w})" if w else "") for l, w in lessons)
-    return (f"{prompt.SYSTEM}\n\n## THE PLAYBOOK — lessons your user taught you. "
-            f"Apply these AUTOMATICALLY in every investigation, unasked:\n{book}")
-
-
 async def answer(conn, chat_id: str, user_text: str) -> str:
-    save_turn(conn, chat_id, "user", user_text)
-    messages = history(conn, chat_id)
-    system = system_prompt(conn)
+    log("user", user_text)
+    turns.save_turn(conn, chat_id, "user", user_text)
+    messages = turns.history(conn, chat_id)
+    system = turns.system_prompt(conn)
+    failures = []
     for _ in range(MAX_STEPS):
         raw = (await llm.complete(system, messages)).strip()
         action = extract_action(raw)
         if action is None:
-            reply = raw  # model spoke plain text — accept it
+            log("plaintext", raw[:300])  # model broke protocol — visible, accepted
+            reply = raw
             break
         if "reply" in action:
             reply = action["reply"]
             break
         name, args = action.get("tool"), action.get("args", {})
-        print(f"  tool: {name}({json.dumps(args)[:100]})", flush=True)
-        result = await run_tool(conn, name, args)
+        result = await call_tool(conn, name, args)
+        if isinstance(result, dict) and result.get("error"):
+            failures.append(f"{name}: {str(result['error'])[:150]}")
         messages.append({"role": "assistant", "content": raw})
         messages.append({"role": "user",
                          "content": f"TOOL RESULT {name}: {json.dumps(result)[:6000]}"})
     else:
         reply = "I ran out of steps mid-investigation — ask me to continue."
-    save_turn(conn, chat_id, "assistant", reply)
+
+    # Mechanical honesty: failures reach the user by CODE, not by model choice.
+    if failures:
+        reply += ("\n\n⚠️ System note — these checks FAILED this turn (my answer "
+                  "may be incomplete): " + " | ".join(failures))
+    lesson = await reflex.learn(conn, user_text)
+    if lesson:
+        reply += f"\n\n📘 Learned (will apply automatically): {lesson}"
+    log("reply", reply[:500])
+    turns.save_turn(conn, chat_id, "assistant", reply)
     return reply
