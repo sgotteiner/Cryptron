@@ -17,12 +17,14 @@ UA = {"User-Agent": "cryptron/1.0 (crypto research agent)", "Accept": "applicati
 
 
 async def _get(client: httpx.AsyncClient, url: str, params: dict | None = None):
-    """GET with one polite retry on 429 — bursts of hand calls must not die."""
-    resp = await client.get(url, params=params)
-    if resp.status_code == 429:
-        await asyncio.sleep(float(resp.headers.get("retry-after", 10)))
+    """GET with escalating retries on 429 — the free tier's rolling window
+    needs real backoff, not one hopeful nudge."""
+    for wait in (15, 45):
         resp = await client.get(url, params=params)
-    return resp
+        if resp.status_code != 429:
+            return resp
+        await asyncio.sleep(float(resp.headers.get("retry-after", wait)))
+    return await client.get(url, params=params)
 
 
 def _pool_summary(pool: dict) -> dict:
@@ -90,50 +92,3 @@ async def fetch_ohlcv(network: str, address: str, timeframe: str = "hour",
         resp.raise_for_status()
     candles = resp.json()["data"]["attributes"]["ohlcv_list"]
     return sorted(candles, key=lambda c: c[0])
-
-
-async def price_summary(conn, coin: str, since_iso: str, days_before: float = 7,
-                        days_after: float = 30) -> dict:
-    """What the coin did around a moment — the DEX twin of price_summary."""
-    found = await search(conn, coin, top=10)
-    if not found.get("pools"):
-        return {"coin": coin, "error": found.get("error", "no DEX pool found")}
-    # search matches substrings ('WIF' also finds 'WIFSEM') — keep only pools
-    # whose base symbol IS the coin, then take the most liquid one
-    symbol = coin.upper().strip().lstrip("$#")
-    exact = [p for p in found["pools"]
-             if (p["name"] or "").upper().split("/")[0].strip().lstrip("$") == symbol]
-    if not exact:
-        return {"coin": coin, "error": "no pool whose base token is exactly this "
-                "symbol; candidates: " + ", ".join(p["name"] for p in found["pools"][:5])}
-    pool = max(exact, key=lambda p: float(p["liquidity_usd"] or 0))
-
-    since = datetime.fromisoformat(since_iso.replace("Z", "+00:00"))
-    if since.tzinfo is None:
-        since = since.replace(tzinfo=timezone.utc)
-    end = min(since + timedelta(days=days_after), datetime.now(timezone.utc))
-    window_days = days_before + (end - since).days + 1
-    timeframe = "hour" if window_days <= 40 else "day"  # 1000-candle API cap
-
-    candles = await fetch_ohlcv(pool["network"], pool["address"], timeframe,
-                                before=end)
-    start_ts = (since - timedelta(days=days_before)).timestamp()
-    candles = [c for c in candles if c[0] >= start_ts]
-    before = [c for c in candles if c[0] < since.timestamp()]
-    after = [c for c in candles if c[0] >= since.timestamp()]
-    if not after:
-        return {"coin": coin, "pool": pool["name"],
-                "error": "no candles after that moment (pool younger than the call?)"}
-
-    entry = after[0][4]
-    out = {"coin": coin, "pool": pool["name"], "network": pool["network"],
-           "liquidity_usd": pool["liquidity_usd"], "timeframe": timeframe,
-           "entry": entry,
-           "after": {"peak_pct": round((max(c[2] for c in after) / entry - 1) * 100, 1),
-                     "low_pct": round((min(c[3] for c in after) / entry - 1) * 100, 1),
-                     "close_pct": round((after[-1][4] / entry - 1) * 100, 1)}}
-    if before:
-        out["trend_before"] = {
-            "days": days_before,
-            "change_pct": round((entry / before[0][4] - 1) * 100, 1)}
-    return out

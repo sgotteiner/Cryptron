@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 
 from .. import db
-from ..hands import background, dex
+from ..hands import background, dex, dex_price
 from ..memory import finds, paths, recall
 from ..senses import coingecko
 from . import llm, outcomes, prompt, social, tools
@@ -30,7 +30,7 @@ async def run_tool(conn, name: str, args: dict) -> dict:
         if name == "dex_search":
             return await dex.search(conn, **args)
         if name == "dex_price_summary":
-            return await dex.price_summary(conn, **args)
+            return await dex_price.price_summary(conn, **args)
         if name == "dex_trending":
             return await dex.trending(conn, **args)
         if name == "mentions":

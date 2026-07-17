@@ -85,6 +85,10 @@ async def save_find(conn, slug: str, kind: str, scope: dict, statement: str,
                     body: str = "", links: list | None = None,
                     provenance: str = "brain") -> dict:
     """A find is born — always 'candidate' (§5: promotion must be earned)."""
+    if kind not in ("conclusion", "config"):
+        return {"error": f"kind must be 'conclusion' or 'config', not '{kind}'. "
+                "Raw data about a coin is NOT a find — it lives in the senses; "
+                "a find must move a knob (directive) or settle atom values."}
     FINDS_DIR.mkdir(exist_ok=True)
     fid = next_id(kind)
     slug = re.sub(r"[^a-z0-9-]", "", slug.lower().replace(" ", "-")).strip("-")[:60]
