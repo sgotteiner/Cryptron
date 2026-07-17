@@ -86,6 +86,10 @@ telegram payload keys: text, message_id, sender_id, views. experiments(id, threa
 hypothesis, config, testing_organ, sample, market_adjusted, result, reading, created_at); \
 threads(id, question, status, parent); finds(id, kind, scope, statement, confidence, \
 status) — but prefer the purpose-built tools (recall/finds_in_scope/read_find) over raw sql.
+- capture_background(source_id, n=10) — BATCH-snapshot the group's n most recent \
+calls: DEX pools + sentiment per coin, paced internally (takes ~20s per coin — tell \
+the user it's running a sweep). ALWAYS use this for "add/collect data about the \
+signals" requests instead of looping per-coin tools; one call does the whole sweep.
 - label_calls(source_id, organ, config) — judge EVERY call of a group under one way of \
 trading and PERSIST each row into call_outcomes(coin, source_id, called_at, organ, \
 config, entry, peak_pct, low_pct, close_pct, win, pnl_pct, note). This builds the \

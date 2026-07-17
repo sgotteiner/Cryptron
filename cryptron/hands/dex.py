@@ -5,6 +5,7 @@ that price.py returns None for — this hand can finally score them.
 Every search snapshot is captured into sense_dex (a gem pool's price/
 liquidity/fdv is exactly the ephemeral data memory exists to keep).
 """
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -13,6 +14,15 @@ from .. import db
 
 API = "https://api.geckoterminal.com/api/v2"
 UA = {"User-Agent": "cryptron/1.0 (crypto research agent)", "Accept": "application/json"}
+
+
+async def _get(client: httpx.AsyncClient, url: str, params: dict | None = None):
+    """GET with one polite retry on 429 — bursts of hand calls must not die."""
+    resp = await client.get(url, params=params)
+    if resp.status_code == 429:
+        await asyncio.sleep(float(resp.headers.get("retry-after", 10)))
+        resp = await client.get(url, params=params)
+    return resp
 
 
 def _pool_summary(pool: dict) -> dict:
@@ -36,7 +46,7 @@ async def search(conn, query: str, top: int = 5) -> dict:
     query = query.upper().strip().lstrip("$#")
     now = datetime.now(timezone.utc)
     async with httpx.AsyncClient(headers=UA, timeout=30) as client:
-        resp = await client.get(f"{API}/search/pools", params={"query": query})
+        resp = await _get(client, f"{API}/search/pools", {"query": query})
         if resp.status_code != 200:
             return {"error": f"GeckoTerminal returned {resp.status_code}"}
         pools = [_pool_summary(p) for p in resp.json()["data"][:top]]
@@ -54,7 +64,7 @@ async def trending(conn, network: str | None = None, top: int = 10) -> dict:
     path = f"/networks/{network}/trending_pools" if network else "/networks/trending_pools"
     now = datetime.now(timezone.utc)
     async with httpx.AsyncClient(headers=UA, timeout=30) as client:
-        resp = await client.get(f"{API}{path}")
+        resp = await _get(client, f"{API}{path}")
         if resp.status_code != 200:
             return {"error": f"GeckoTerminal returned {resp.status_code}"}
         pools = [_pool_summary(p) for p in resp.json()["data"][:top]]
@@ -74,9 +84,9 @@ async def fetch_ohlcv(network: str, address: str, timeframe: str = "hour",
     if before:
         params["before_timestamp"] = int(before.timestamp())
     async with httpx.AsyncClient(headers=UA, timeout=30) as client:
-        resp = await client.get(
-            f"{API}/networks/{network}/pools/{address}/ohlcv/{timeframe}",
-            params=params)
+        resp = await _get(
+            client, f"{API}/networks/{network}/pools/{address}/ohlcv/{timeframe}",
+            params)
         resp.raise_for_status()
     candles = resp.json()["data"]["attributes"]["ohlcv_list"]
     return sorted(candles, key=lambda c: c[0])

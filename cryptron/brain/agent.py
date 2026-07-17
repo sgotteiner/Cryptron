@@ -3,12 +3,12 @@ import json
 from datetime import datetime, timezone
 
 from .. import db
-from ..hands import dex
+from ..hands import background, dex
 from ..memory import finds, paths, recall
 from ..senses import coingecko
 from . import llm, outcomes, prompt, social, tools
 
-MAX_STEPS = 8
+MAX_STEPS = 12
 
 
 async def run_tool(conn, name: str, args: dict) -> dict:
@@ -49,6 +49,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return paths.open_thread(conn, **args)
         if name == "replay_thread":
             return paths.replay(conn, **args)
+        if name == "capture_background":
+            return await background.capture(conn, **args)
         if name == "label_calls":
             return await outcomes.label_calls(conn, **args)
         if name == "record_experiment":

@@ -12,11 +12,24 @@ SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
 
 def called_symbols(conn, source_ids: list[str], min_mentions: int = 3) -> list[str]:
     """Every ticker a group called (>= min_mentions), across the given groups."""
+    return sorted(_mentions(conn, source_ids, min_mentions))
+
+
+def recent_called(conn, source_ids: list[str], n: int = 10,
+                  min_mentions: int = 1) -> list[str]:
+    """The n most recently first-called tickers, newest first."""
+    first = _mentions(conn, source_ids, min_mentions)
+    return sorted(first, key=lambda t: first[t], reverse=True)[:n]
+
+
+def _mentions(conn, source_ids: list[str], min_mentions: int) -> dict:
+    """ticker -> first-seen time, for tickers with >= min_mentions."""
     rows = conn.execute("""
-        SELECT payload->>'text' FROM sense_telegram
-        WHERE source_id = ANY(%s)""", (source_ids,)).fetchall()
-    count: dict[str, int] = {}
-    for (text,) in rows:
+        SELECT observed_at, payload->>'text' FROM sense_telegram
+        WHERE source_id = ANY(%s) ORDER BY observed_at""", (source_ids,)).fetchall()
+    first, count = {}, {}
+    for at, text in rows:
         for t in set(TICKER_RE.findall(text or "")) - SKIP:
+            first.setdefault(t, at)
             count[t] = count.get(t, 0) + 1
-    return sorted(t for t, n in count.items() if n >= min_mentions)
+    return {t: first[t] for t, c in count.items() if c >= min_mentions}
