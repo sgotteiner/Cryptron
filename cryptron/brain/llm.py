@@ -36,23 +36,32 @@ async def _openai_style(client, url: str, key: str, model: str,
 
 
 async def complete(system: str, messages: list) -> str:
+    """First success wins — and the winner is LOGGED: which model answered a
+    turn is diagnosis-critical (a silent fallback is a different brain)."""
     errors = []
     async with httpx.AsyncClient(timeout=90) as client:
         try:
-            return await _gemini(client, system, messages)
+            text = await _gemini(client, system, messages)
+            print(f"  llm: gemini/{GEMINI_MODEL}", flush=True)
+            return text
         except Exception as e:
             errors.append(f"gemini: {e}")
         try:
-            return await _openai_style(
+            text = await _openai_style(
                 client, "https://api.groq.com/openai/v1/chat/completions",
                 os.environ["GROQ_API_KEY"].strip(), GROQ_MODEL, system, messages)
+            print(f"  llm: FALLBACK groq/{GROQ_MODEL} (gemini: "
+                  f"{errors[0][:80]})", flush=True)
+            return text
         except Exception as e:
             errors.append(f"groq: {e}")
         try:
-            return await _openai_style(
+            model = os.environ.get("OPENROUTER_MODEL", "openrouter/auto")
+            text = await _openai_style(
                 client, "https://openrouter.ai/api/v1/chat/completions",
-                os.environ["OPENROUTER_API_KEY"].strip(),
-                os.environ.get("OPENROUTER_MODEL", "openrouter/auto"), system, messages)
+                os.environ["OPENROUTER_API_KEY"].strip(), model, system, messages)
+            print(f"  llm: FALLBACK openrouter/{model}", flush=True)
+            return text
         except Exception as e:
             errors.append(f"openrouter: {e}")
     raise RuntimeError("all LLM providers failed: " + " | ".join(errors))
