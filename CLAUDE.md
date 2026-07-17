@@ -1,5 +1,14 @@
 # Cryptron — working rules for Claude
 
+## THE GOVERNING RULE: he designs, Claude implements (absolute, 2026-07-18)
+
+Only the user designs this system. Never invent features, mechanisms, or "solutions"
+to problems he raises. When he describes a problem or asks a question, the deliverable
+is the diagnosis/answer — then STOP and let him decide what to build. Code only what
+he designed or explicitly asked for. If he asks to consult, present options — and
+still write NO code until he approves a specific one. (Rule triggered by: uninvited
+history-wrapping/quarantine features built while he was only asking questions.)
+
 ## First: stand in the user's shoes
 
 Before any work, understand WHY this system exists. His problem: **his reasoning
@@ -46,6 +55,14 @@ problem of HIS it solves before deciding how to build it.
   one prompt line + one dispatch line.
 - Same economy in memory: don't save trash — one truth per lesson, retire stale notes,
   no two truths anywhere (code, docs, vault, playbook).
+
+## The log-fix workflow (his design, 2026-07-18)
+
+When he says "look at the logs and fix": (1) diagnose from `logs/cryptron.log`,
+(2) fix the bug, (3) then CLEAN THE CHAT — edit the hallucinated/broken messages in
+`sense_chat` to state what the fix did (or delete them if he says so). The edited
+message is his visible proof the fix landed. Fabricated turns stay marked
+`fabricated: true` so they never re-enter the model's history window.
 
 ## Practical
 
