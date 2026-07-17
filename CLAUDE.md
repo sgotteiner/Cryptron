@@ -1,13 +1,11 @@
 # Cryptron — working rules for Claude
 
-## THE GOVERNING RULE: he designs, Claude implements (absolute, 2026-07-18)
+## Governing methodology — see the GLOBAL `~/.claude/CLAUDE.md` (all projects)
 
-Only the user designs this system. Never invent features, mechanisms, or "solutions"
-to problems he raises. When he describes a problem or asks a question, the deliverable
-is the diagnosis/answer — then STOP and let him decide what to build. Code only what
-he designed or explicitly asked for. If he asks to consult, present options — and
-still write NO code until he approves a specific one. (Rule triggered by: uninvited
-history-wrapping/quarantine features built while he was only asking questions.)
+He designs, Claude implements; verify before handing back; own failures with
+evidence; patch-or-design; deliver the asked thing and stop. Those rules are global
+and live in the global file + `Vault/Meta/Claude_Collaboration_Methodology.md`.
+This file holds only their Cryptron-specific applications.
 
 ## First: stand in the user's shoes
 
@@ -40,20 +38,11 @@ problem of HIS it solves before deciding how to build it.
   only has to say things once. We are learning each other — his feedback here is the
   same ask-once contract Cryptron lives by.
 
-## Cleaning methodology (his rule, stated 2026-07-17)
+## Cleaning — Cryptron-specific application (general rule lives in the global file)
 
-- **Patch or design?** Before building a feature, ask if it's a patch or something
-  deeper. If deeper — develop it properly (own module, right table, right contract),
-  don't bolt it on.
-- **After several patches, cleanup is needed.** Bloat accumulates in prompts, docs,
-  playbooks, and code alike; refactoring the prompt while adding rules was the model
-  case. When touching a file that has absorbed patches, leave it reorganized, not
-  longer.
-- Keep the codebase **clean, flexible, easy to extend, maintainable**: separation of
-  concerns, files ≤150 lines (split when bigger), one module = one role (sense /
-  hand / brain tool / memory layer). Adding a hand must stay: one module + one table +
-  one prompt line + one dispatch line.
-- Same economy in memory: don't save trash — one truth per lesson, retire stale notes,
+- One module = one role (sense / hand / brain tool / memory layer). Adding a hand
+  must stay: one module + one table + one prompt line + one dispatch line.
+- Memory economy: don't save trash — one truth per lesson, retire stale notes,
   no two truths anywhere (code, docs, vault, playbook).
 
 ## The log-fix workflow (his design, 2026-07-18)
