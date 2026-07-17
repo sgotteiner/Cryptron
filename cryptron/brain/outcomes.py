@@ -60,7 +60,8 @@ async def label_calls(conn, source_id: str, organ: str, config: dict) -> dict:
             DO UPDATE SET entry = EXCLUDED.entry, peak_pct = EXCLUDED.peak_pct,
               low_pct = EXCLUDED.low_pct, close_pct = EXCLUDED.close_pct,
               win = EXCLUDED.win, pnl_pct = EXCLUDED.pnl_pct,
-              note = EXCLUDED.note, computed_at = now()""",
+              note = EXCLUDED.note, computed_at = now()
+            WHERE EXCLUDED.entry IS NOT NULL OR call_outcomes.entry IS NULL""",
             (call["ticker"], source_id, called_at, organ, json.dumps(config),
              row["entry"], row["peak_pct"], row["low_pct"], row["close_pct"],
              row["win"], row["pnl_pct"], row["note"]))
