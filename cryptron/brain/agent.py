@@ -9,6 +9,13 @@ from . import llm, outcomes, reflex, social, tools, turns
 
 MAX_STEPS = 12
 
+PROTOCOL_NUDGE = (
+    'PROTOCOL VIOLATION: your ENTIRE output must be ONE JSON object — '
+    '{"tool": ..., "args": ...} or {"reply": "..."}. If you described tools or '
+    'numbers in prose, you did NOT run them: no result exists. Run the real tool '
+    'now, or wrap your answer in {"reply": "..."} containing ONLY facts that '
+    'appear in a TOOL RESULT above.')
+
 
 async def run_tool(conn, name: str, args: dict) -> dict:
     try:
@@ -101,19 +108,25 @@ async def answer(conn, chat_id: str, user_text: str) -> str:
     turns.save_turn(conn, chat_id, "user", user_text)
     messages = turns.history(conn, chat_id)
     system = turns.system_prompt(conn)
-    failures = []
+    failures, tools_run, bounces = [], 0, 0
     for _ in range(MAX_STEPS):
         raw = (await llm.complete(system, messages)).strip()
         action = extract_action(raw)
-        if action is None:
-            log("plaintext", raw[:300])  # model broke protocol — visible, accepted
-            reply = raw
+        if action is None:  # protocol break: bounce it back, don't accept prose
+            log("plaintext", raw[:300])
+            if bounces < 2:
+                bounces += 1
+                messages.append({"role": "assistant", "content": raw})
+                messages.append({"role": "user", "content": PROTOCOL_NUDGE})
+                continue
+            reply = raw  # refused thrice — the no-tools footer below discloses
             break
         if "reply" in action:
             reply = action["reply"]
             break
         name, args = action.get("tool"), action.get("args", {})
         result = await call_tool(conn, name, args)
+        tools_run += 1
         if isinstance(result, dict) and result.get("error"):
             failures.append(f"{name}: {str(result['error'])[:150]}")
         messages.append({"role": "assistant", "content": raw})
@@ -122,10 +135,13 @@ async def answer(conn, chat_id: str, user_text: str) -> str:
     else:
         reply = "I ran out of steps mid-investigation — ask me to continue."
 
-    # Mechanical honesty: failures reach the user by CODE, not by model choice.
+    # Mechanical honesty: disclosures reach the user by CODE, not model choice.
     if failures:
         reply += ("\n\n⚠️ System note — these checks FAILED this turn (my answer "
                   "may be incomplete): " + " | ".join(failures))
+    if tools_run == 0:
+        reply += ("\n\n⚠️ System note — NO checks were run this turn: the above "
+                  "comes from conversation memory, not fresh data.")
     lesson = await reflex.learn(conn, user_text)
     if lesson:
         reply += f"\n\n📘 Learned (will apply automatically): {lesson}"
