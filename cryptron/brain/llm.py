@@ -13,6 +13,13 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
+def _nonempty(text) -> str:
+    """An empty/None completion is a provider FAILURE — fall to the next."""
+    if not text or not str(text).strip():
+        raise ValueError("empty completion")
+    return text
+
+
 async def _gemini(client, system: str, messages: list) -> str:
     key = os.environ["GEMINI_API_KEY"].strip()
     contents = [{"role": "model" if m["role"] == "assistant" else "user",
@@ -23,7 +30,8 @@ async def _gemini(client, system: str, messages: list) -> str:
         json={"systemInstruction": {"parts": [{"text": system}]}, "contents": contents},
     )
     r.raise_for_status()
-    return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"])
+    return _nonempty("".join(
+        p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"]))
 
 
 async def _openai_style(client, url: str, key: str, model: str,
@@ -34,7 +42,7 @@ async def _openai_style(client, url: str, key: str, model: str,
               "messages": [{"role": "system", "content": system}] + messages},
     )
     r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
+    return _nonempty(r.json()["choices"][0]["message"]["content"])
 
 
 async def complete(system: str, messages: list) -> str:
