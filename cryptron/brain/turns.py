@@ -21,7 +21,9 @@ def history(conn, chat_id: str, n: int = 16) -> list:
     one prose reply in history teaches it to fabricate in prose forever."""
     rows = conn.execute("""
         SELECT payload->>'role', payload->>'text' FROM sense_chat
-        WHERE source_id = %s ORDER BY id DESC LIMIT %s""", (chat_id, n)).fetchall()
+        WHERE source_id = %s
+          AND coalesce(payload->>'fabricated', '') <> 'true'
+        ORDER BY id DESC LIMIT %s""", (chat_id, n)).fetchall()
     return [{"role": role,
              "content": json.dumps({"reply": text}, ensure_ascii=False)
              if role == "assistant" else text}
