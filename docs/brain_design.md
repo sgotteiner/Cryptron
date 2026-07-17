@@ -98,6 +98,12 @@ NOT already run and that is NOT already in my playbook?*
   coin, with the why.
 - A question that merely wants a number (mode 2 in §1) is neither — just answer.
 
+**Enforced in code, not just prompted (2026-07-17):** banking is ALSO a dedicated
+reflex (`brain/reflex.py`) — a single-purpose LLM call on every user message that only
+asks "did he just teach a durable lesson?" and saves it (deduped). A side-duty in a
+mega-prompt gets dropped under load; a separate act does not. When it banks, the reply
+carries a visible "📘 Learned:" line so the user sees the contract honored.
+
 Ask-once contract: he should only ever have to ask once; from then on the check runs
 unprompted on every relevant investigation. When his question redirects a LIVE
 investigation, the lesson carries `(thread_id, after_experiment)` — a pivot bead on
@@ -135,6 +141,13 @@ two ways:
   tool list; `agent.run_tool` dispatches. Adding a hand = tool line in the prompt +
   dispatch line + the module. The embodiment rule stands: the prompt describes ALL
   the body there is, and the brain refuses honestly beyond it.
+- **The logbook (`cryptron/log.py` → console + `logs/cryptron.log`):** every user
+  turn, every LLM call (WHICH provider/model answered — silent fallback was a
+  different brain wearing the same face), every tool call with args, every result,
+  every failure, every reflex save. Nothing the system does is invisible.
+- **Mechanical honesty:** if any tool call failed during a turn, the reply gets a
+  code-appended "⚠️ System note — these checks FAILED" footer. Failure reporting
+  does not depend on the model choosing to mention it.
 
 ---
 
