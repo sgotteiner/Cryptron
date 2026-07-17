@@ -73,6 +73,30 @@ CREATE TABLE IF NOT EXISTS sense_cursors (
   PRIMARY KEY (sense, source_id)
 );
 
+-- The outcomes knowledge base: coins we KNOW won or lost, and how. One row =
+-- one call judged under one way of trading it (no universal score, §4 — the
+-- same call can be a win under hold_and_let_run and a loss under tight TP/SL).
+-- Comparison experiments JOIN this against the background senses captured.
+CREATE TABLE IF NOT EXISTS call_outcomes (
+  id          BIGSERIAL PRIMARY KEY,
+  coin        TEXT NOT NULL,
+  source_id   TEXT NOT NULL,        -- which group called it
+  called_at   TIMESTAMPTZ NOT NULL, -- first mention
+  organ       TEXT NOT NULL,        -- how "win" was defined
+  config      JSONB NOT NULL,       -- the organ's parameters
+  entry       DOUBLE PRECISION,
+  peak_pct    DOUBLE PRECISION,
+  low_pct     DOUBLE PRECISION,
+  close_pct   DOUBLE PRECISION,
+  win         BOOLEAN,              -- NULL = not priceable / window still open
+  pnl_pct     DOUBLE PRECISION,
+  note        TEXT,                 -- e.g. 'not on CEX'
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (coin, source_id, called_at, organ, config)
+);
+CREATE INDEX IF NOT EXISTS idx_call_outcomes_win
+  ON call_outcomes (source_id, organ, win);
+
 -- The playbook: lessons the user taught (or the brain inferred) that must be
 -- applied automatically to every future investigation. Ask once -> learned.
 CREATE TABLE IF NOT EXISTS guidance (
