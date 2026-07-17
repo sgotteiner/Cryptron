@@ -1,6 +1,7 @@
 # Cryptron — Memory Design
 
-> The last design doc. Memory is the shared infrastructure (§6: one bloodstream, creature-level);
+> The core-infrastructure design doc ([`brain_design.md`](brain_design.md) came later,
+> for the workflow layer on top). Memory is the shared infrastructure (§6: one bloodstream, creature-level);
 > hands plug in one at a time afterward and scale. This doc fixes the three contracts that make
 > that possible: **the shape of a find**, **the id spine**, and **the retrieval contract**.
 > Everything else (which hand next, thresholds, MAS vs single loop) is discovered by running.
