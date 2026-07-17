@@ -31,6 +31,9 @@ feargreed:                            # market regime; first run backfills full 
 coingecko:                            # per-coin sentiment snapshots (keyless, slow rate)
   - source_id: watchlist
     symbols: [BTC, ETH, SOL]
+  - source_id: called-cohort          # every coin the groups called — the comparison cohort
+    from_calls: [binance_killers]     # resolved from sense_telegram at run time
+    min_mentions: 3
 
 dex_trending:                         # GeckoTerminal trending pools; no key (gem radar)
   - source_id: trending-all           # across all networks

@@ -4,13 +4,13 @@ Every tool returns a compact JSON-able dict. The embodiment principle rules:
 these are ALL the hands there are — anything else must be honestly refused.
 """
 import json
-import re
 from datetime import datetime, timedelta, timezone
 
 from ..hands import price, tradingview
 from ..hands.organs import ORGANS
 from ..memory import embed
 from ..senses import cmc
+from ..tickers import SKIP, TICKER_RE
 
 
 async def cmc_lookup(conn, symbols: list[str]) -> dict:
@@ -19,10 +19,6 @@ async def cmc_lookup(conn, symbols: list[str]) -> dict:
 
 async def exchanges(coin: str) -> dict:
     return await price.listed_on(coin)
-
-
-TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
-SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
 
 
 def sources(conn) -> dict:

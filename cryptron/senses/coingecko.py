@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-from .. import config, db
+from .. import config, db, tickers
 
 SENSE = "coingecko"
 TABLE = "sense_coingecko"
@@ -66,9 +66,21 @@ async def lookup(conn, coin: str) -> dict:
             "note": "votes are today's snapshot; history accumulates in sense_coingecko"}
 
 
+def _symbols(conn, target: dict) -> list[str]:
+    """Static list, or the called cohort: every ticker the groups signalled.
+
+    Comparisons need the SAME metrics across winners AND losers — so the
+    cohort is resolved from sense_telegram at run time, not hand-picked.
+    """
+    if "from_calls" in target:
+        return tickers.called_symbols(conn, target["from_calls"],
+                                      int(target.get("min_mentions", 3)))
+    return target["symbols"]
+
+
 async def capture_all(conn, targets: list[dict]) -> None:
     for target in targets:
-        for symbol in target["symbols"]:
+        for symbol in _symbols(conn, target):
             res = await lookup(conn, symbol)
             if "rate limit" in str(res.get("error", "")):
                 await asyncio.sleep(65)  # cool off once, retry once
