@@ -43,11 +43,23 @@ and serving model. The fix workflow (also in `CLAUDE.md`):
 1. Diagnose from the log — the trace is complete enough that the failure is
    always in it.
 2. Fix the bug.
-3. **Clean the chat**: edit the hallucinated/broken bot messages in
+3. **Decontaminate**: edit the hallucinated/broken bot messages in
    `sense_chat` to state what the fix did — the visible proof, in the
    conversation itself, that the fix landed. Fabricated turns stay marked
    (`fabricated: true`) and never re-enter the model's context (quarantine,
    not erasure — layer 1 stays append-only).
+
+### Decontamination (his concept — why step 3 exists)
+
+A stateful chat has a feedback loop: one bad reply gets saved, re-fed as
+context, imitated, and built upon — a single bug amplifies into persistent
+failure. Going stateless would break the loop but destroy the assistant.
+His solution keeps both: after the code fix, the CONTENT is fixed too — the
+poisoned message is rewritten to carry the truth (what was wrong, what the
+fix did), so the same history that spread the disease now spreads the cure.
+The fix isn't just deployed; it becomes part of the system's memory of
+itself. This is the same epistemics the finds live by (history lines,
+deaths-are-data) applied to the chat.
 
 ## 4. Testing by replaying the user's chat
 
