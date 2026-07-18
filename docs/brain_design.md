@@ -129,11 +129,18 @@ two ways:
 
 ## 6. Mechanics (current implementation, small and replaceable)
 
-- **Loop:** Telegram long-poll (`brain/chat.py`, transport only) → `brain/agent.py`:
-  history (last 16 turns of `sense_chat`) + system prompt → LLM → ONE JSON action per
-  step (`{"tool": …}` or `{"reply": …}`), max 8 steps. Every turn captured to
+- **Two-tier flow (his design, 2026-07-18: "get the top gain in a simple query —
+  that's it"):** every message first hits the FAST PATH (`brain/router.py`): a tiny
+  routing call picks ONE retrieval — a single SELECT over the tables or one live
+  lookup — and a tiny composer words the numbers (~2K tokens total). Judgment
+  (evaluations, comparisons, verdicts, teaching, multi-step work) ESCALATES to the
+  investigator loop (`brain/agent.py`): history (16 turns) + full system prompt →
+  ONE JSON action per step, max 12 steps (~40K tokens/message — reserve it for what
+  needs it). Dispatch registry: `brain/dispatch.py`. Every turn captured to
   `sense_chat` (chat is a sense).
-- **LLM chain:** Gemini → Groq → OpenRouter fallback (`brain/llm.py`).
+- **LLM chain:** Claude (headless CLI on the paid plan; identity as true system
+  prompt, zero native tools, retry + session-limit cooldown) → Gemini → Groq →
+  OpenRouter as loudly-logged fallback (`brain/llm.py`).
 - **Playbook injection:** all active guidance rides on every prompt (full-injection) —
   acceptable while the playbook is small; must become selective retrieval when it
   grows (memory_design §6 already defines how: the guidance→finds migration).
