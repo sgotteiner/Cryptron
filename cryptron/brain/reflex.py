@@ -9,7 +9,6 @@ runs it; dedupe in save_guidance keeps the playbook one-truth-per-lesson.
 import json
 
 from ..log import log
-from ..memory import paths
 from . import llm
 
 PROMPT = """You extract durable investigation lessons from a user's message to \
@@ -25,8 +24,9 @@ or, if the message contains no durable lesson:
 {"lesson": null}"""
 
 
-async def learn(conn, user_text: str) -> str | None:
-    """Returns the lesson text if this message taught one (and it was new)."""
+async def detect(user_text: str) -> dict | None:
+    """Detect a durable lesson — NEVER banks (his rule: he approves with
+    'bank'). Returns {"lesson", "why"} or None."""
     try:
         raw = (await llm.complete(
             PROMPT, [{"role": "user", "content": user_text}])).strip()
@@ -34,12 +34,7 @@ async def learn(conn, user_text: str) -> str | None:
     except Exception as e:
         log("reflex-err", f"{type(e).__name__}: {e}")
         return None
-    lesson = obj.get("lesson")
-    if not lesson:
+    if not obj.get("lesson"):
         return None
-    saved = await paths.save_guidance(conn, lesson=lesson, why=obj.get("why", ""))
-    if "learned" in saved:
-        log("reflex", f"BANKED: {lesson}")
-        return lesson
-    log("reflex", f"already known: {lesson[:100]}")
-    return None
+    log("reflex", f"detected: {obj['lesson'][:100]}")
+    return {"lesson": obj["lesson"], "why": obj.get("why", "")}

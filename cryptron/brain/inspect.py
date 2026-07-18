@@ -45,6 +45,17 @@ async def graph(conn, topic: str = "") -> dict:
     return {"text": "\n".join(lines)}
 
 
+def playbook(conn) -> dict:
+    """Every active lesson, verbatim — 'what guidance did you save?'"""
+    rows = conn.execute("""
+        SELECT id, lesson, coalesce(why, ''), provenance FROM guidance
+        WHERE active ORDER BY id""").fetchall()
+    lines = [f"Playbook: {len(rows)} active lessons"]
+    for id_, lesson, why, prov in rows:
+        lines.append(f"  [{id_}|{prov}] {lesson}" + (f" (why: {why})" if why else ""))
+    return {"text": "\n".join(lines)}
+
+
 def trace(n: int = 25) -> dict:
     """The last n meaningful logbook lines — exactly what the system did."""
     try:

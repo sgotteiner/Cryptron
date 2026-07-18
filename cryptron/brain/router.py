@@ -33,9 +33,11 @@ listings · dex_search{"query"} pools/liquidity/age · mentions{"ticker","days"}
 attention across channels · fear_greed{} regime now vs averages · capabilities{} \
 what the bot watches/senses/can do (use for "what tools/sources do you have") · \
 graph{"topic": "..."} the closest taught situations + next steps for a topic, or \
-all taught edges with no topic (use for "what do you know / what would you do \
-for X / show your teachings") · trace{"n": 25} what just happened internally — \
-steps, sims, tool calls, failures (use for "what went wrong / show the trace") · \
+all taught edges with no topic (use for "what do you know / closest situation / \
+what would you do for X / show your teachings") · trace{"n": 25} what just \
+happened internally — steps, sims, tool calls, failures (use for "what went \
+wrong / show the trace") · playbook{} every saved lesson verbatim (use for \
+"what guidance/lessons did you save") · \
 add_source{"kind": telegram|cmc|reddit|news|coingecko, ...} start watching \
 something new (telegram: source_id+link+backfill; cmc/coingecko: symbols:[...]; \
 reddit: source_id+subreddit; news: source_id+url) — use when he says "add/watch \
@@ -43,6 +45,11 @@ this group/coin/subreddit".
 
 SQL notes: numeric outcome columns can be NULL (unpriceable coins) — always \
 add NULLS LAST to ORDER BY ... DESC, or filter IS NOT NULL.
+
+RESOLVE REFERENTS: pronouns ("it", "its", "that coin", "there") refer to the \
+most recent coin/group in RECENT CONTEXT — substitute the concrete ticker/\
+source_id yourself. NEVER escalate just to resolve a referent. "signals/\
+messages in <group>" means sql over sense_telegram for that source_id.
 
 Output exactly one of:
 {"sql": "SELECT ..."}            <- stored numbers answer it
@@ -58,8 +65,8 @@ add numbers of your own. Output plain text, no JSON."""
 
 FAST_TOOLS = {"cmc_lookup", "sentiment", "exchanges", "dex_search",
               "mentions", "fear_greed", "capabilities", "add_source",
-              "graph", "trace"}
-VERBATIM = {"graph", "trace"}  # exact internals — no LLM rewording
+              "graph", "trace", "playbook", "sources", "calls"}
+VERBATIM = {"graph", "trace", "playbook", "capabilities"}  # exact, no rewording
 
 
 async def route(user_text: str, recent: str) -> dict | None:

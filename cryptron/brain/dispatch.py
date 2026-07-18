@@ -22,6 +22,8 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return await inspect.graph(conn, **args)
         if name == "trace":
             return inspect.trace(**args)
+        if name == "playbook":
+            return inspect.playbook(conn)
         if name == "add_source":
             return await admin.add_source(conn, **args)
         if name == "calls":

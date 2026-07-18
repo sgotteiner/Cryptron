@@ -1,20 +1,18 @@
-"""The situation-graph loop (his design): one step at a time, zero LLM tokens
-while walking. Embed the situation -> nearest TAUGHT step -> execute. LLM only
-at the boundaries: the end analysis (verdict) and the suggestion fallback when
-teachings run thin — his approval of a suggestion becomes a new taught edge.
-"""
+"""The situation-graph walker: one taught step at a time, zero LLM tokens
+while walking. Walks while teachings are confident; a 'verdict' edge triggers
+the end analysis. When teachings run out it RETURNS what it found — the
+turn layer (assist.py) always appends the next-step suggestion."""
 import json
 import os
 
 from ..log import log
 from ..memory import embed, paths
 from ..tickers import find_tickers
-from . import prompt, render
+from . import prompt, render, session
 from .dispatch import call_tool
 
 STEP_SIM_MIN = float(os.environ.get("STEP_SIM_MIN", "0.60"))
 MAX_STEPS = 12
-PENDING: dict = {}  # chat_id -> {"task", "state", "suggestion"}
 
 
 async def next_taught(conn, situation: str, done: set) -> dict | None:
@@ -27,65 +25,66 @@ async def next_taught(conn, situation: str, done: set) -> dict | None:
         ORDER BY embedding <=> %s::vector LIMIT 5""", (vec, vec)).fetchall()
     for row in rows:
         action = row[2]
-        key = action.get("tool") or action.get("kind")
-        if key not in done or action.get("kind") == "verdict":
+        if (action.get("tool") or "") not in done or action.get("kind") == "verdict":
             return {"id": row[0], "situation": row[1], "action": action,
                     "sim": round(row[3], 3)}
     return None
 
 
 def fill_args(hint: dict, task: str) -> dict | None:
-    """Mechanical binding: {coin} from the task's ticker, {source_id} from a
-    group name in the task. Unresolvable placeholder -> None (can't walk)."""
+    """Mechanical binding: {coin}/{source_id} resolved from the task text.
+    Unresolvable placeholder -> None (can't walk this edge here)."""
     tickers = find_tickers(task)
     groups = [g for g in ("sangitagem", "crypto_gemsignals") if g in task.lower()]
     args = {}
     for k, v in (hint or {}).items():
-        if isinstance(v, str) and "{coin}" in v:
+        blob = json.dumps(v)
+        if "{coin}" in blob:
             if not tickers:
                 return None
-            v = v.replace("{coin}", tickers[0])
-        if isinstance(v, str) and "{source_id}" in v:
+            blob = blob.replace("{coin}", tickers[0])
+        if "{source_id}" in blob:
             if not groups:
                 return None
-            v = v.replace("{source_id}", groups[0])
-        if isinstance(v, list):
-            v = [x.replace("{coin}", tickers[0]) if isinstance(x, str)
-                 and "{coin}" in x and tickers else x for x in v]
-            if any(isinstance(x, str) and "{" in x for x in v):
-                return None
-        args[k] = v
+            blob = blob.replace("{source_id}", groups[0])
+        args[k] = json.loads(blob)
     return args
 
 
-async def run(conn, chat_id: str, task: str, state: list | None = None) -> str:
-    state, failures = state if state is not None else [], []
-    for _ in range(MAX_STEPS - len(state)):
-        situation = render.render(task, state)
-        done = {s["tool"] for s in state}
+async def run(conn, chat_id: str, task: str) -> str:
+    """Walk taught edges from the current session state; stop honestly."""
+    s = session.of(chat_id)
+    failures = []
+    for _ in range(MAX_STEPS):
+        flow = session.task_steps(chat_id)
+        situation = render.render(task, flow)
+        done = {x["tool"] for x in flow}
         top = await next_taught(conn, situation, done)
         log("step", f"sim={top['sim'] if top else 'none'} "
             f"-> {json.dumps(top['action']) if top else 'no edges'}")
         if top is None or top["sim"] < STEP_SIM_MIN:
-            return await _suggest(conn, chat_id, task, state, situation, top)
+            found = "\n".join(f"- {x['text']}" for x in flow[-6:])
+            return (f"Here's what I have so far:\n{found}"
+                    if found else "I haven't checked anything for this yet.")
         action = top["action"]
         if action.get("kind") == "verdict":
-            return await _analyze(conn, task, state, failures)
+            return await analyze(conn, task, flow, failures)
         args = fill_args(action.get("args_hint"), task)
         if args is None:
-            return await _suggest(conn, chat_id, task, state, situation, top)
+            return "I know the next step but can't fill its arguments — " \
+                   f"teach me: {json.dumps(action)}"
         result = await call_tool(conn, action["tool"], args)
         if isinstance(result, dict) and result.get("error"):
             failures.append(f"{action['tool']}: {str(result['error'])[:120]}")
-        text, features = render.summarize(action["tool"], result)
-        state.append({"tool": action["tool"], "text": text, "features": features,
-                      "raw": json.dumps(result, default=str)[:1500]})
-    return await _analyze(conn, task, state, failures)
+        text, _ = render.summarize(action["tool"], result)
+        session.add_step(chat_id, action["tool"], text,
+                         json.dumps(result, default=str))
+    return await analyze(conn, task, flow, failures)
 
 
-async def _analyze(conn, task: str, state: list, failures: list) -> str:
+async def analyze(conn, task: str, state: list, failures: list) -> str:
     from . import llm
-    gathered = "\n".join(f"- {s['tool']}: {s['raw']}" for s in state) or "(nothing)"
+    gathered = "\n".join(f"- {x['tool']}: {x['raw']}" for x in state) or "(nothing)"
     try:  # the qualitative playbook informs judgment (top-relevant only)
         vec = json.dumps(await embed.embed(task, task="RETRIEVAL_QUERY"))
         lessons = paths.load_guidance(conn, query_vec=vec, k=4)
@@ -99,26 +98,4 @@ async def _analyze(conn, task: str, state: list, failures: list) -> str:
     if failures:
         reply += ("\n\n⚠️ System note — these checks FAILED (answer may be "
                   "incomplete): " + " | ".join(failures))
-    if not state:
-        reply += "\n\n⚠️ System note — NO checks were run for this answer."
     return reply
-
-
-async def _suggest(conn, chat_id, task, state, situation, top) -> str:
-    from . import llm
-    raw = (await llm.complete(prompt.SUGGEST, [{"role": "user", "content":
-           f"{situation}\n\nNearest teaching (too far, sim="
-           f"{top['sim'] if top else 'none'}): "
-           f"{json.dumps(top['action']) if top else 'none'}"}])).strip()
-    try:
-        s = json.loads(raw[raw.find("{"): raw.rfind("}") + 1])
-    except Exception:
-        s = {"tool": None, "why": raw[:200]}
-    PENDING[chat_id] = {"task": task, "state": state, "suggestion": s,
-                       "situation": situation}
-    found = "\n".join(f"- {x['text']}" for x in state) or "- nothing yet"
-    return (f"My teachings don't cover this situation. Found so far:\n{found}\n\n"
-            f"I suggest next: {s.get('tool')}({json.dumps(s.get('args', {}))}) — "
-            f"{s.get('why', '')}\nApprove, or teach me what to do instead.\n"
-            f"(ask 'what can you do' for tools · 'show trace' for internals · "
-            f"'what do you know about X' for my teachings)")
