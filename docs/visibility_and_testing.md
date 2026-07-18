@@ -70,3 +70,12 @@ teaching interface (approvals become edges), the debugger (verbatim console),
 and the test corpus (real usage replayed). There is no separate "dev mode" —
 development pressure and usage pressure are the same pressure, so what gets
 fixed is exactly what gets used.
+
+**And it all rests on the atomic design** (creature doc §3): the system was
+designed from atoms up — named, small, single-purpose units (one sense = one
+table, one hand = one tool with one signature, one step = one edge, one lesson
+= one row). Visibility is only possible because there are precise things to
+see: a trace line can name the exact tool and args, a similarity score can
+point at one edge, a failure can name one hand. A system designed as a blob
+can be logged but not TRACED; this one can be traced because every behavior
+decomposes to atoms that were designed before they were built.
