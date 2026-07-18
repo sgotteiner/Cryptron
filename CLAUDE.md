@@ -53,6 +53,12 @@ When he says "look at the logs and fix": (1) diagnose from `logs/cryptron.log`,
 message is his visible proof the fix landed. Fabricated turns stay marked
 `fabricated: true` so they never re-enter the model's history window.
 
+## Test hygiene (approved 2026-07-19)
+
+Test cleanups must be scoped to ids the test itself created — never blanket-delete
+from `taught_steps` or `guidance`; his teachings live there. (A blanket cleanup once
+destroyed his live-session teachings; they had to be rebuilt from logs.)
+
 ## Practical
 
 - Free/keyless data sources preferred; no paid dependencies (Firecrawl dropped,

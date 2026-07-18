@@ -129,21 +129,28 @@ two ways:
 
 ## 6. Mechanics (current implementation, small and replaceable)
 
-- **The three-way brain (his design, final 2026-07-18):** every message goes
-  (1) **resume** — if a suggestion is pending, his reply teaches: approval/correction
-  becomes a taught edge and the flow continues; (2) **fast path** (`brain/router.py`)
-  — data question → ONE retrieval (a SELECT or one live lookup) → tiny composer
-  (~1.2K tokens); (3) **the situation graph** (`brain/steps.py`) — everything else
-  walks taught edges one step at a time at ZERO LLM tokens per step (embed situation
-  → nearest taught step → mechanical args → execute), with LLM only at boundaries:
-  the END ANALYSIS (verdict over gathered numbers + top-relevant playbook lessons,
-  ~1–2K once) and the SUGGESTION fallback below the similarity threshold (propose
-  one step + why; his yes/correction = new edge). Full investigation ≈ 2–3K tokens.
-  **The free-improvising loop is deleted** — the LLM no longer chooses step
-  sequences; it judges data and proposes. Canonical situation rendering rules:
-  memory_design §6 "situation graph" section (names → "the coin", values → log +
-  class word, one renderer everywhere). Dispatch registry: `brain/dispatch.py`.
-  Every turn captured to `sense_chat` (chat is a sense).
+- **The turn contract (his design, verbatim, final 2026-07-18):** every message →
+  (1) **approvals first** (`brain/assist.py`): 'bank' saves the pending guide;
+  'go' (typed or the ▶ button) runs the pending next step AND teaches it as an
+  edge ('COIN, go' resolves placeholders; unresolvable args are never run as
+  literals; failed steps are never taught); (2) **guidance detection**: a teaching
+  in his message is extracted and SHOWN — "say 'bank' to save" — never auto-banked;
+  (3) **do the task**: fast path (`brain/router.py`, ONE retrieval, pronouns
+  resolved from context, introspection tools answer VERBATIM) or the situation-graph
+  walk (`brain/steps.py`, zero LLM tokens per step; 'verdict' edge → end analysis);
+  (4) **ALWAYS a suggested next step** — from the taught graph when similarity
+  clears the threshold, from reasoning otherwise; his approval is the teaching.
+- **The transport is part of the UX** (`brain/chat.py`): inline buttons 📘 Bank /
+  ▶ Go / ✖ Close on every reply with pendings (buttons strip after use); a ⏳
+  heartbeat message every 60s during long checks — never minutes of silence.
+- **Per-chat working state** (`brain/session.py`): rolling steps (all paths feed
+  it), task-scoped views, pending bank/next. **Chat-as-console** (`brain/inspect.py`
+  + `hands/admin.py`): capabilities (sources+senses+tools with WHAT-DATA
+  descriptions), graph(topic) closest situations with sims, trace() the logbook
+  tail, playbook() all lessons — all VERBATIM, no LLM rewording; add_source() grows
+  the body from chat (targets.yaml is machine-managed).
+  Canonical situation rendering: memory_design §6 "situation graph" section.
+  Dispatch registry: `brain/dispatch.py`. Every turn captured to `sense_chat`.
 - **LLM chain:** Claude (headless CLI on the paid plan; identity as true system
   prompt, zero native tools, retry + session-limit cooldown) → Gemini → Groq →
   OpenRouter as loudly-logged fallback (`brain/llm.py`).
