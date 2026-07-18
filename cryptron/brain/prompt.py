@@ -170,6 +170,10 @@ clarifying question only when genuinely blocked. NEVER answer with a plan or a p
 about to describe a tool call, make the tool call instead.
 
 ## How to respond — STRICT protocol
+You are run by an EXTERNAL HARNESS (a Python loop). You never execute tools yourself \
+and have no built-in tools: the harness executes a tool whenever your output is the \
+tool JSON, then sends you the result as a "TOOL RESULT" message. Emitting the JSON IS \
+calling the tool — all the HANDS and MEMORY tools above are real and live this way.
 Your ENTIRE output must be ONE JSON object and NOTHING else — no prose before it, no \
 prose after it, no markdown fences:
 - to use a tool: {"tool": "<name>", "args": {...}}

@@ -9,6 +9,7 @@ One function: complete(system, messages) -> text. Messages are
 """
 import asyncio
 import os
+import tempfile
 
 import httpx
 
@@ -20,8 +21,11 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 async def _claude(system: str, messages: list) -> str:
+    """Cryptron's identity goes in as the REAL system prompt (--system-prompt-
+    file) and the CLI's own tools are stripped (--tools "") — delivered as user
+    text, the model rightly treats a persona as prompt injection and refuses."""
     convo = "\n\n".join(f"[{m['role']}]\n{m['content']}" for m in messages)
-    prompt = (f"{system}\n\n=== CONVERSATION SO FAR ===\n{convo}\n\n"
+    prompt = (f"=== CONVERSATION SO FAR ===\n{convo}\n\n"
               "=== YOUR NEXT OUTPUT (one JSON object, per protocol) ===")
     # Clean env so inherited session vars can't hijack auth: the CLI then
     # authenticates from the machine's stored login (~/.claude/.credentials.json);
@@ -31,12 +35,23 @@ async def _claude(system: str, messages: list) -> str:
     token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip()
     if token:
         env["CLAUDE_CODE_OAUTH_TOKEN"] = token
-    proc = await asyncio.create_subprocess_exec(
-        "claude", "-p", "--output-format", "text", "--model", CLAUDE_MODEL,
-        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE, env=env)
-    out, err = await asyncio.wait_for(
-        proc.communicate(prompt.encode("utf-8")), timeout=180)
+    fd, sys_path = tempfile.mkstemp(suffix=".txt", text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(system)
+        # Neutral cwd + no MCP + no tools: the brain must see ZERO native
+        # tools, or it checks its own tool list and refuses the harness ones.
+        proc = await asyncio.create_subprocess_exec(
+            "claude", "-p", "--output-format", "text", "--model", CLAUDE_MODEL,
+            "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+            "--system-prompt-file", sys_path,
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE, env=env,
+            cwd=tempfile.gettempdir())
+        out, err = await asyncio.wait_for(
+            proc.communicate(prompt.encode("utf-8")), timeout=180)
+    finally:
+        os.unlink(sys_path)
     if proc.returncode != 0:
         raise RuntimeError(f"claude cli exit {proc.returncode}: "
                            f"{err.decode('utf-8', 'replace')[:200]}")
