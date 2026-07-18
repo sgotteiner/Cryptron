@@ -120,37 +120,3 @@ async def _suggest(conn, chat_id, task, state, situation, top) -> str:
     return (f"My teachings don't cover this situation. Found so far:\n{found}\n\n"
             f"I suggest next: {s.get('tool')}({json.dumps(s.get('args', {}))}) — "
             f"{s.get('why', '')}\nApprove, or teach me what to do instead.")
-
-
-async def resume(conn, chat_id: str, user_text: str) -> str | None:
-    """If a suggestion is pending, his reply teaches: approve -> record edge +
-    continue; correction with a tool name -> record HIS step; else drop pending."""
-    p = PENDING.pop(chat_id, None)
-    if p is None:
-        return None
-    low = user_text.lower()
-    action = None
-    if any(w in low for w in ("yes", "ok", "approve", "do it", "go")):
-        s = p["suggestion"]
-        action = {"tool": s.get("tool"), "args_hint": s.get("args", {})}
-    else:
-        named = [t for t in ("sentiment", "mentions", "dex_search", "cmc_lookup",
-                             "exchanges", "price_summary", "dex_price_summary",
-                             "score", "label_calls", "sql", "fear_greed")
-                 if t in low]
-        if named:
-            action = {"tool": named[0], "args_hint": {}}
-    if action is None or not action.get("tool"):
-        return None  # not about the suggestion — normal flow handles it
-    for t in find_tickers(p["task"]):  # taught edges must GENERALIZE
-        action["args_hint"] = json.loads(
-            json.dumps(action["args_hint"]).replace(t, "{coin}"))
-    await paths.teach_step(conn, p["situation"], action,
-                           lesson_src=f"approved in chat: {user_text[:120]}")
-    log("edge", f"taught: {json.dumps(action)}")
-    args = fill_args(action["args_hint"], p["task"]) or {}
-    result = await call_tool(conn, action["tool"], args)
-    text, features = render.summarize(action["tool"], result)
-    p["state"].append({"tool": action["tool"], "text": text, "features": features,
-                       "raw": json.dumps(result, default=str)[:1500]})
-    return await run(conn, chat_id, p["task"], p["state"])

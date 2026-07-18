@@ -49,7 +49,18 @@ async def teach_step(conn, situation: str, action: dict, lesson_src: str = "",
                      guidance_id: int | None = None,
                      features: dict | None = None) -> dict:
     """A taught edge is born — always traced to a guidance row (teachings ONLY
-    create edges; approval of a suggestion is a teaching)."""
+    create edges). One truth per edge: a near-identical existing edge with the
+    same tool absorbs the teaching instead of duplicating it."""
+    try:
+        vec_q = json.dumps(await embed.embed(situation, task="RETRIEVAL_QUERY"))
+        near = conn.execute("""
+            SELECT action, 1 - (embedding <=> %s::vector) FROM taught_steps
+            WHERE active AND embedding IS NOT NULL
+            ORDER BY embedding <=> %s::vector LIMIT 1""", (vec_q, vec_q)).fetchone()
+        if near and near[1] > 0.93 and near[0].get("tool") == action.get("tool"):
+            return {"already_taught": action, "sim": round(near[1], 3)}
+    except Exception:
+        pass
     if guidance_id is None:
         first = situation.splitlines()[0][:160]
         guidance_id = conn.execute("""

@@ -3,7 +3,7 @@ take the fast path, everything else walks the taught situation graph.
 The old free-improvising loop is gone (his design: steps come from teachings;
 the LLM only judges gathered data and suggests when teachings run thin)."""
 from ..log import log
-from . import reflex, router, steps, turns
+from . import reflex, router, steps, teach, turns
 from .dispatch import call_tool
 
 
@@ -31,7 +31,7 @@ async def answer(conn, chat_id: str, user_text: str) -> str:
     log("user", user_text)
     turns.save_turn(conn, chat_id, "user", user_text)
 
-    reply = await steps.resume(conn, chat_id, user_text)  # pending suggestion?
+    reply = await teach.resume(conn, chat_id, user_text)  # pending suggestion?
     if reply is None:
         messages = turns.history(conn, chat_id)
         reply = await fast_path(conn, user_text, messages)
