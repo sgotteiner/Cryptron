@@ -41,21 +41,25 @@ async def _claude(system: str, messages: list) -> str:
             f.write(system)
         # Neutral cwd + no MCP + no tools: the brain must see ZERO native
         # tools, or it checks its own tool list and refuses the harness ones.
-        proc = await asyncio.create_subprocess_exec(
-            "claude", "-p", "--output-format", "text", "--model", CLAUDE_MODEL,
-            "--tools", "", "--strict-mcp-config", "--setting-sources", "",
-            "--system-prompt-file", sys_path,
-            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE, env=env,
-            cwd=tempfile.gettempdir())
-        out, err = await asyncio.wait_for(
-            proc.communicate(prompt.encode("utf-8")), timeout=180)
+        for attempt, wait in ((1, 15), (2, 45), (3, 0)):  # ride out throttle blips
+            proc = await asyncio.create_subprocess_exec(
+                "claude", "-p", "--output-format", "text", "--model", CLAUDE_MODEL,
+                "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+                "--system-prompt-file", sys_path,
+                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE, env=env,
+                cwd=tempfile.gettempdir())
+            out, err = await asyncio.wait_for(
+                proc.communicate(prompt.encode("utf-8")), timeout=180)
+            if proc.returncode == 0:
+                return _nonempty(out.decode("utf-8", "replace").strip())
+            detail = (out or err).decode("utf-8", "replace").strip()[:150]
+            log("llm", f"claude attempt {attempt} exit {proc.returncode}: {detail}")
+            if wait:
+                await asyncio.sleep(wait)
     finally:
         os.unlink(sys_path)
-    if proc.returncode != 0:
-        raise RuntimeError(f"claude cli exit {proc.returncode}: "
-                           f"{err.decode('utf-8', 'replace')[:200]}")
-    return _nonempty(out.decode("utf-8", "replace").strip())
+    raise RuntimeError(f"claude cli failed after 3 attempts: {detail}")
 
 
 def _nonempty(text) -> str:
