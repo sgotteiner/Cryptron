@@ -141,9 +141,14 @@ two ways:
 - **LLM chain:** Claude (headless CLI on the paid plan; identity as true system
   prompt, zero native tools, retry + session-limit cooldown) → Gemini → Groq →
   OpenRouter as loudly-logged fallback (`brain/llm.py`).
-- **Playbook injection:** all active guidance rides on every prompt (full-injection) —
-  acceptable while the playbook is small; must become selective retrieval when it
-  grows (memory_design §6 already defines how: the guidance→finds migration).
+- **Context is RETRIEVED, never dumped (his correction, 2026-07-18: "the point of
+  the memory is to retrieve precisely — fix the system"):** lessons carry pgvector
+  embeddings and each call injects only the top-6 relevant to the message
+  (`paths.load_guidance` + `turns.system_prompt`); the identity prompt is compact
+  by design (~1.8K tokens with playbook slice, was 4.4K); history is 8 clipped
+  turns (~0.4K, was 2.1K); tool results cap at 2.5K chars. Measured: data question
+  ~1.2K tokens (was ~40K), deep 5-step investigation ~18.5K (was ~40K). Remaining
+  lever if deep turns must go lower: session reuse (send only deltas per step).
 - **Tool surface:** the prompt's HANDS/MEMORY sections are the single authoritative
   tool list; `agent.run_tool` dispatches. Adding a hand = tool line in the prompt +
   dispatch line + the module. The embodiment rule stands: the prompt describes ALL
