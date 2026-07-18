@@ -8,8 +8,9 @@
 > Grounding: [`cryptron_creature.md`](cryptron_creature.md) §7 (analyze→design cycle),
 > §10 (creativity/alertness), §11 (the dialogue, progressive autonomy), §14 (MAS
 > direction); [`memory_design.md`](memory_design.md) §6 (the retrieval contract the
-> brain runs on). The live, enforced form of this doc is `cryptron/brain/prompt.py` —
-> when the two drift, reconcile them in the same edit.
+> brain runs on). The live, enforced form of this doc is the `cryptron/brain/`
+> package (assist/steps/router/prompt) — when doc and code drift, reconcile them
+> in the same edit.
 
 ---
 
@@ -93,16 +94,15 @@ NOT already run and that is NOT already in my playbook?*
 - **Already covered** → answer from what it has and say it was already factored in.
   **That is the system working, not a gap.** Over time most questions should land
   here — that is what learning correctly looks like. Do NOT re-save.
-- **Not covered** → it is a gap: close it now, and `save_guidance` FIRST (before
-  answering) **only if the lesson generalizes** — stated generally, never about one
-  coin, with the why.
+- **Not covered** → it is a gap: close it now, and bank the lesson **only if it
+  generalizes** — stated generally, never about one coin, with the why.
 - A question that merely wants a number (mode 2 in §1) is neither — just answer.
 
-**Enforced in code, not just prompted (2026-07-17):** banking is ALSO a dedicated
-reflex (`brain/reflex.py`) — a single-purpose LLM call on every user message that only
-asks "did he just teach a durable lesson?" and saves it (deduped). A side-duty in a
-mega-prompt gets dropped under load; a separate act does not. When it banks, the reply
-carries a visible "📘 Learned:" line so the user sees the contract honored.
+**Enforced in code, approval-gated (final 2026-07-18):** detection is a dedicated
+reflex (`brain/reflex.py`) — a single-purpose LLM call on every user message that
+only asks "did he just teach a durable lesson?" It NEVER banks on its own: the
+extracted guide is shown back ("📘 Guide detected — say 'bank'"), and only his
+'bank' (word or button) saves it (deduped — one truth per lesson).
 
 Ask-once contract: he should only ever have to ask once; from then on the check runs
 unprompted on every relevant investigation. When his question redirects a LIVE
@@ -156,16 +156,18 @@ two ways:
   OpenRouter as loudly-logged fallback (`brain/llm.py`).
 - **Context is RETRIEVED, never dumped (his correction, 2026-07-18: "the point of
   the memory is to retrieve precisely — fix the system"):** lessons carry pgvector
-  embeddings and each call injects only the top-6 relevant to the message
-  (`paths.load_guidance` + `turns.system_prompt`); the identity prompt is compact
-  by design (~1.8K tokens with playbook slice, was 4.4K); history is 8 clipped
-  turns (~0.4K, was 2.1K); tool results cap at 2.5K chars. Measured: data question
-  ~1.2K tokens (was ~40K), deep 5-step investigation ~18.5K (was ~40K). Remaining
-  lever if deep turns must go lower: session reuse (send only deltas per step).
-- **Tool surface:** the prompt's HANDS/MEMORY sections are the single authoritative
-  tool list; `agent.run_tool` dispatches. Adding a hand = tool line in the prompt +
-  dispatch line + the module. The embodiment rule stands: the prompt describes ALL
-  the body there is, and the brain refuses honestly beyond it.
+  embeddings; the end ANALYSIS injects only the top-relevant few
+  (`paths.load_guidance`); the two remaining LLM briefs (ANALYZE, SUGGEST in
+  `prompt.py`) are compact by design. **Measured (2026-07-19): data question
+  ≈2.1K tokens, 'go' turn ≈1.0K (2 LLM calls exactly), graph-walked step = 0 LLM
+  tokens (embeddings only), verdict ≈2.4K flat regardless of steps walked** — vs
+  18.5K (the deleted improvising loop) and 40K (the original full-dump). Remaining
+  lever if ever needed: session reuse (send only deltas).
+- **Tool surface:** `brain/dispatch.py` is the single execution registry;
+  `hands/admin.py` TOOL_DOCS is the user-facing catalog (what data each tool
+  gets); `prompt.py` TOOLS is the one-line list the SUGGEST brief sees. Adding a
+  hand = module + dispatch line + TOOL_DOCS line (+ router line if fast-path).
+  The embodiment rule stands: the brain refuses honestly beyond its body.
 - **The logbook (`cryptron/log.py` → console + `logs/cryptron.log`):** every user
   turn, every LLM call (WHICH provider/model answered — silent fallback was a
   different brain wearing the same face), every tool call with args, every result,
@@ -190,7 +192,9 @@ two ways:
 
 ## 8. Status
 
-**2026-07-17:** all of the above is live in `prompt.py` and enforced where code can
-enforce it (dedupe, immune system, outcomes persistence). The raising phase continues:
-probes in the Telegram chat, verdicts corrected, lessons banked once. This doc is the
-place to record workflow refinements as they happen — small edits, not rework.
+**2026-07-19 — WORKING BASE, declared by the user.** The turn contract, situation
+graph, Claude brain, chat-as-console and buttons are live and tested against his
+own session transcripts; his first taught chain (7 edges) is in the graph. The
+raising phase continues from the chat: probes, verdicts, 'bank' and 'go'. This doc
+is the place to record workflow refinements as they happen — small edits, not
+rework. Development method: [`visibility_and_testing.md`](visibility_and_testing.md).
