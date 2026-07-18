@@ -1,11 +1,9 @@
-"""Chat-turn memory: every turn captured (chat is a sense), history served
-back, and the system prompt assembled with the playbook riding along."""
+"""Chat-turn memory: every turn captured (chat is a sense), a clipped slice
+served back as context."""
 import json
 from datetime import datetime, timezone
 
 from .. import db
-from ..memory import embed, paths
-from . import prompt
 
 
 def save_turn(conn, chat_id: str, role: str, text: str, message_id=None) -> None:
@@ -35,18 +33,3 @@ def history(conn, chat_id: str, n: int = 8, clip: int = 800) -> list:
     return out
 
 
-async def system_prompt(conn, user_text: str = "") -> str:
-    """Identity + the RELEVANT playbook slice — lessons retrieved by vector
-    similarity to this message, never the whole book (memory_design §6)."""
-    vec = None
-    if user_text:
-        try:
-            vec = json.dumps(await embed.embed(user_text))
-        except Exception:
-            vec = None
-    lessons = paths.load_guidance(conn, query_vec=vec, k=6)
-    if not lessons:
-        return prompt.SYSTEM
-    book = "\n".join(f"- {l}" + (f" (why: {w})" if w else "") for l, w in lessons)
-    return (f"{prompt.SYSTEM}\n\n## PLAYBOOK (the lessons most relevant to this "
-            f"message — apply unasked; more exist, retrievable via sql):\n{book}")

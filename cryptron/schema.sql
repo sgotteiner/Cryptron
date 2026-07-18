@@ -152,6 +152,21 @@ ALTER TABLE guidance ADD COLUMN IF NOT EXISTS after_experiment TEXT REFERENCES e
 -- retrieved by relevance to the message, not dumped wholesale into every call.
 ALTER TABLE guidance ADD COLUMN IF NOT EXISTS embedding VECTOR(1536);
 
+-- The situation graph (his design, 2026-07-18): one taught edge = "in this
+-- situation, the next step is X". Situations are CANONICAL (names become
+-- placeholders, values become log forms + class words) so similarity differs
+-- only where differences MEAN something. Edges come from teachings ONLY.
+CREATE TABLE IF NOT EXISTS taught_steps (
+  id          SERIAL PRIMARY KEY,
+  guidance_id INT REFERENCES guidance(id),  -- every edge traces to a teaching
+  situation   TEXT NOT NULL,                -- canonical rendering
+  action      JSONB NOT NULL,               -- {"tool","args_hint"} | {"kind":"verdict"}
+  features    JSONB,                        -- raw numeric features (log cap, age…)
+  embedding   VECTOR(1536),
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ── Memory, layer 2: finds (memory_design.md §4-6) ─────────────────────────
 -- The vault (finds/*.md) is the source of truth; this table is its INDEX —
 -- the query surface for scope-match and vector recall. Rebuildable any time

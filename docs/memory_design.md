@@ -302,6 +302,34 @@ prompt) are only acceptable while memory is tiny: the moment paths accumulate, r
 must select — entry by similarity, expansion by links, never SELECT-everything. Pulling
 everything was never the idea; pulling the relevant path is.
 
+### The situation graph — steps as memory (his design, 2026-07-18)
+
+Retrieval doesn't only serve finds; it serves the NEXT STEP. One taught edge =
+"in this situation, the next step is X" (`taught_steps`: situation text, its
+embedding, the action, the raw features). The brain walks investigations one
+step at a time, **zero LLM tokens while walking**: embed the current situation
+→ nearest taught step → fill args mechanically → execute. LLM only at the
+boundaries: the end analysis (verdict over gathered numbers) and the
+suggestion fallback.
+
+**How to use — the canonical rendering rules (bind ALL writers and readers):**
+- A situation = the task + numbered steps done with their result summaries.
+- Names never appear: tickers become "the coin" — PEPE and BONK must land on
+  the same vector; identity is not meaning.
+- Raw values never appear: they become **log form + class word** ("cap 10^6.9
+  (small)", "liquidity 10^5.1 (thin)") so similarity degrades smoothly with
+  magnitude and jumps only across meaningful classes. Raw features are ALSO
+  stored structurally beside the embedding (future: numeric distance can join
+  the threshold check without re-teaching).
+- One renderer (`brain/render.py`) is used for seeding, walking, and
+  edge-recording — taught situations and live situations speak one language.
+- **Edges come from teachings only.** Below the similarity threshold the brain
+  does not improvise: it reports findings and SUGGESTS one next step; the
+  user's approval/correction is recorded as a new taught edge (traced to a
+  guidance row). Over time approvals cover the paths.
+- Within one flow a taught step already executed is excluded from matching —
+  a step is a bead on the path, never a drum loop.
+
 ### Learned retrieval — the similarity space improves
 
 Embeddings cluster on surface features (coin, strategy, timeframe) — the *proxies*. The

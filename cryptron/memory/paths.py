@@ -45,6 +45,30 @@ async def save_guidance(conn, lesson: str, why: str = "", provenance: str = "use
     return {"learned": lesson} | ({"pivot_on": thread_id} if thread_id else {})
 
 
+async def teach_step(conn, situation: str, action: dict, lesson_src: str = "",
+                     guidance_id: int | None = None,
+                     features: dict | None = None) -> dict:
+    """A taught edge is born — always traced to a guidance row (teachings ONLY
+    create edges; approval of a suggestion is a teaching)."""
+    if guidance_id is None:
+        first = situation.splitlines()[0][:160]
+        guidance_id = conn.execute("""
+            INSERT INTO guidance (lesson, why, provenance)
+            VALUES (%s, %s, 'user') RETURNING id""",
+            (f"{first} -> next step: {action.get('tool') or action.get('kind')}",
+             lesson_src)).fetchone()[0]
+    try:
+        vec = json.dumps(await embed.embed(situation))
+    except Exception:
+        vec = None
+    conn.execute("""
+        INSERT INTO taught_steps (guidance_id, situation, action, features, embedding)
+        VALUES (%s, %s, %s, %s, %s::vector)""",
+        (guidance_id, situation, json.dumps(action),
+         json.dumps(features or {}), vec))
+    return {"edge": action, "guidance_id": guidance_id}
+
+
 def load_guidance(conn, query_vec: str | None = None, k: int = 6) -> list:
     """The playbook slice for THIS message: top-k by relevance when a query
     embedding is given (memory_design §6 — never inject everything), else the

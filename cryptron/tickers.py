@@ -7,7 +7,18 @@ metrics across the whole called cohort, not just coins someone asked about).
 import re
 
 TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]{1,9})\b")
+BARE_RE = re.compile(r"\b([A-Z][A-Z0-9]{2,9})\b")
 SKIP = {"USDT", "USD", "K", "M", "B", "BTC", "ETH", "SOL", "BNB"}
+_WORDS = {"THE", "AND", "FOR", "NOT", "GOOD", "BAD", "CEX", "DEX", "TASK",
+          "API", "OK", "SQL", "TP", "SL", "PNL", "FDV"} | SKIP
+
+
+def find_tickers(text: str) -> list[str]:
+    """$-prefixed tickers first; else bare ALL-CAPS words that look like one."""
+    dollar = [t for t in TICKER_RE.findall(text) if t not in SKIP]
+    if dollar:
+        return dollar
+    return [t for t in BARE_RE.findall(text) if t not in _WORDS]
 
 
 def called_symbols(conn, source_ids: list[str], min_mentions: int = 3) -> list[str]:

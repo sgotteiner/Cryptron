@@ -129,15 +129,21 @@ two ways:
 
 ## 6. Mechanics (current implementation, small and replaceable)
 
-- **Two-tier flow (his design, 2026-07-18: "get the top gain in a simple query —
-  that's it"):** every message first hits the FAST PATH (`brain/router.py`): a tiny
-  routing call picks ONE retrieval — a single SELECT over the tables or one live
-  lookup — and a tiny composer words the numbers (~2K tokens total). Judgment
-  (evaluations, comparisons, verdicts, teaching, multi-step work) ESCALATES to the
-  investigator loop (`brain/agent.py`): history (16 turns) + full system prompt →
-  ONE JSON action per step, max 12 steps (~40K tokens/message — reserve it for what
-  needs it). Dispatch registry: `brain/dispatch.py`. Every turn captured to
-  `sense_chat` (chat is a sense).
+- **The three-way brain (his design, final 2026-07-18):** every message goes
+  (1) **resume** — if a suggestion is pending, his reply teaches: approval/correction
+  becomes a taught edge and the flow continues; (2) **fast path** (`brain/router.py`)
+  — data question → ONE retrieval (a SELECT or one live lookup) → tiny composer
+  (~1.2K tokens); (3) **the situation graph** (`brain/steps.py`) — everything else
+  walks taught edges one step at a time at ZERO LLM tokens per step (embed situation
+  → nearest taught step → mechanical args → execute), with LLM only at boundaries:
+  the END ANALYSIS (verdict over gathered numbers + top-relevant playbook lessons,
+  ~1–2K once) and the SUGGESTION fallback below the similarity threshold (propose
+  one step + why; his yes/correction = new edge). Full investigation ≈ 2–3K tokens.
+  **The free-improvising loop is deleted** — the LLM no longer chooses step
+  sequences; it judges data and proposes. Canonical situation rendering rules:
+  memory_design §6 "situation graph" section (names → "the coin", values → log +
+  class word, one renderer everywhere). Dispatch registry: `brain/dispatch.py`.
+  Every turn captured to `sense_chat` (chat is a sense).
 - **LLM chain:** Claude (headless CLI on the paid plan; identity as true system
   prompt, zero native tools, retry + session-limit cooldown) → Gemini → Groq →
   OpenRouter as loudly-logged fallback (`brain/llm.py`).
