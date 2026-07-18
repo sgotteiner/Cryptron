@@ -119,4 +119,6 @@ async def _suggest(conn, chat_id, task, state, situation, top) -> str:
     found = "\n".join(f"- {x['text']}" for x in state) or "- nothing yet"
     return (f"My teachings don't cover this situation. Found so far:\n{found}\n\n"
             f"I suggest next: {s.get('tool')}({json.dumps(s.get('args', {}))}) — "
-            f"{s.get('why', '')}\nApprove, or teach me what to do instead.")
+            f"{s.get('why', '')}\nApprove, or teach me what to do instead.\n"
+            f"(ask 'what can you do' for tools · 'show trace' for internals · "
+            f"'what do you know about X' for my teachings)")

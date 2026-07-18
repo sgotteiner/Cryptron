@@ -9,7 +9,7 @@ from ..hands import admin, background, dex, dex_price
 from ..log import log
 from ..memory import finds, paths, recall
 from ..senses import coingecko
-from . import outcomes, social, tools
+from . import inspect, outcomes, social, tools
 
 
 async def run_tool(conn, name: str, args: dict) -> dict:
@@ -18,6 +18,10 @@ async def run_tool(conn, name: str, args: dict) -> dict:
             return tools.sources(conn)
         if name == "capabilities":
             return admin.capabilities(conn)
+        if name == "graph":
+            return await inspect.graph(conn, **args)
+        if name == "trace":
+            return inspect.trace(**args)
         if name == "add_source":
             return await admin.add_source(conn, **args)
         if name == "calls":

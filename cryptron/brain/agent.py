@@ -24,6 +24,8 @@ async def fast_path(conn, user_text: str, messages: list) -> str | None:
     result = await call_tool(conn, name, args)
     if isinstance(result, dict) and result.get("error"):
         return None  # cheap path failed — the graph flow can handle it
+    if name in router.VERBATIM:  # internals must reach him EXACT, unreworded
+        return result.get("text", str(result))
     return await router.compose(user_text, result)
 
 

@@ -32,6 +32,10 @@ now · sentiment{"coin"} votes/watchlist/community sizes · exchanges{"coin"} CE
 listings · dex_search{"query"} pools/liquidity/age · mentions{"ticker","days"} \
 attention across channels · fear_greed{} regime now vs averages · capabilities{} \
 what the bot watches/senses/can do (use for "what tools/sources do you have") · \
+graph{"topic": "..."} the closest taught situations + next steps for a topic, or \
+all taught edges with no topic (use for "what do you know / what would you do \
+for X / show your teachings") · trace{"n": 25} what just happened internally — \
+steps, sims, tool calls, failures (use for "what went wrong / show the trace") · \
 add_source{"kind": telegram|cmc|reddit|news|coingecko, ...} start watching \
 something new (telegram: source_id+link+backfill; cmc/coingecko: symbols:[...]; \
 reddit: source_id+subreddit; news: source_id+url) — use when he says "add/watch \
@@ -53,7 +57,9 @@ plain language. If the result is empty or lacks it, say exactly that. Never \
 add numbers of your own. Output plain text, no JSON."""
 
 FAST_TOOLS = {"cmc_lookup", "sentiment", "exchanges", "dex_search",
-              "mentions", "fear_greed", "capabilities", "add_source"}
+              "mentions", "fear_greed", "capabilities", "add_source",
+              "graph", "trace"}
+VERBATIM = {"graph", "trace"}  # exact internals — no LLM rewording
 
 
 async def route(user_text: str, recent: str) -> dict | None:
