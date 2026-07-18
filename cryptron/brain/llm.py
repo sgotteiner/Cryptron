@@ -10,6 +10,7 @@ One function: complete(system, messages) -> text. Messages are
 import asyncio
 import os
 import tempfile
+import time
 
 import httpx
 
@@ -19,11 +20,17 @@ CLAUDE_MODEL = os.environ.get("CRYPTRON_CLAUDE_MODEL", "claude-sonnet-5")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
+_claude_cooldown_until = 0.0  # session-limit memory: don't re-knock a shut door
+
 
 async def _claude(system: str, messages: list) -> str:
     """Cryptron's identity goes in as the REAL system prompt (--system-prompt-
     file) and the CLI's own tools are stripped (--tools "") — delivered as user
     text, the model rightly treats a persona as prompt injection and refuses."""
+    global _claude_cooldown_until
+    if time.time() < _claude_cooldown_until:
+        raise RuntimeError("session limit cooldown "
+                           f"({int(_claude_cooldown_until - time.time())}s left)")
     convo = "\n\n".join(f"[{m['role']}]\n{m['content']}" for m in messages)
     prompt = (f"=== CONVERSATION SO FAR ===\n{convo}\n\n"
               "=== YOUR NEXT OUTPUT (one JSON object, per protocol) ===")
@@ -55,6 +62,9 @@ async def _claude(system: str, messages: list) -> str:
                 return _nonempty(out.decode("utf-8", "replace").strip())
             detail = (out or err).decode("utf-8", "replace").strip()[:150]
             log("llm", f"claude attempt {attempt} exit {proc.returncode}: {detail}")
+            if "limit" in detail.lower():  # hard window: back off 10 min, no retry
+                _claude_cooldown_until = time.time() + 600
+                break
             if wait:
                 await asyncio.sleep(wait)
     finally:

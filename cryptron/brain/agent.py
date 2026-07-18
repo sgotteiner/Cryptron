@@ -1,11 +1,10 @@
-"""The reasoning loop: user message -> LLM + tools -> reply, all captured."""
+"""The reasoning loops: fast path for data questions, the investigator loop
+for judgment — every action logged, every failure disclosed."""
 import json
 
-from ..hands import background, dex, dex_price
 from ..log import log
-from ..memory import finds, paths, recall
-from ..senses import coingecko
-from . import llm, outcomes, reflex, social, tools, turns
+from . import llm, reflex, router, turns
+from .dispatch import call_tool
 
 MAX_STEPS = 12
 
@@ -15,76 +14,6 @@ PROTOCOL_NUDGE = (
     'numbers in prose, you did NOT run them: no result exists. Run the real tool '
     'now, or wrap your answer in {"reply": "..."} containing ONLY facts that '
     'appear in a TOOL RESULT above.')
-
-
-async def run_tool(conn, name: str, args: dict) -> dict:
-    try:
-        if name == "sources":
-            return tools.sources(conn)
-        if name == "calls":
-            return tools.calls(conn, **args)
-        if name == "price_summary":
-            return await tools.price_summary(**args)
-        if name == "score":
-            return await tools.score(conn, **args)
-        if name == "sql":
-            return tools.sql(conn, **args)
-        if name == "cmc_lookup":
-            return await tools.cmc_lookup(conn, **args)
-        if name == "exchanges":
-            return await tools.exchanges(**args)
-        if name == "dex_search":
-            return await dex.search(conn, **args)
-        if name == "dex_price_summary":
-            return await dex_price.price_summary(conn, **args)
-        if name == "dex_trending":
-            return await dex.trending(conn, **args)
-        if name == "mentions":
-            return social.mentions(conn, **args)
-        if name == "sentiment":
-            return await coingecko.lookup(conn, **args)
-        if name == "fear_greed":
-            return social.fear_greed(conn)
-        if name == "tv_search":
-            return await tools.tv_search(**args)
-        if name == "tv_ohlcv":
-            return await tools.tv_ohlcv(**args)
-        if name == "save_guidance":
-            return paths.save_guidance(conn, **args)
-        if name == "open_thread":
-            return paths.open_thread(conn, **args)
-        if name == "replay_thread":
-            return paths.replay(conn, **args)
-        if name == "capture_background":
-            return await background.capture(conn, **args)
-        if name == "label_calls":
-            return await outcomes.label_calls(conn, **args)
-        if name == "record_experiment":
-            return await tools.record_experiment(conn, **args)
-        if name == "save_find":
-            return await finds.save_find(conn, **args)
-        if name == "update_find":
-            return await finds.update_find(conn, **args)
-        if name == "recall":
-            return await recall.recall(conn, **args)
-        if name == "finds_in_scope":
-            return recall.in_scope(conn, **args)
-        if name == "read_find":
-            return recall.read(conn, **args)
-        return {"error": f"no such tool: {name}"}
-    except Exception as e:
-        return {"error": f"{type(e).__name__}: {e}"}
-
-
-async def call_tool(conn, name: str, args: dict) -> dict:
-    """run_tool + the logbook: args in, result or FAILURE out — always visible."""
-    log("tool", f"{name} {json.dumps(args, default=str)}")
-    result = await run_tool(conn, name, args)
-    if isinstance(result, dict) and result.get("error"):
-        log("TOOL-FAIL", f"{name}: {result['error']}")
-    else:
-        log("result", json.dumps(result, default=str)[:800])
-    return result
 
 
 def extract_action(raw: str) -> dict | None:
@@ -103,10 +32,39 @@ def extract_action(raw: str) -> dict | None:
     return None
 
 
+async def fast_path(conn, user_text: str, messages: list) -> str | None:
+    """His design: data question -> ONE simple retrieval -> the numbers. The
+    full investigator brain is reserved for judgment; escalation is the router
+    saying so. Returns the reply, or None to escalate."""
+    recent = "\n".join(m["content"][:200] for m in messages[-4:])
+    plan = await router.route(user_text, recent)
+    if not plan or "escalate" in plan:
+        log("route", f"escalate: {(plan or {}).get('escalate', 'router failed')}")
+        return None
+    if "sql" in plan:
+        name, args = "sql", {"query": plan["sql"]}
+    elif plan.get("tool") in router.FAST_TOOLS:
+        name, args = plan["tool"], plan.get("args", {})
+    else:
+        return None
+    result = await call_tool(conn, name, args)
+    if isinstance(result, dict) and result.get("error"):
+        return None  # cheap path failed — let the full brain handle it
+    return await router.compose(user_text, result)
+
+
 async def answer(conn, chat_id: str, user_text: str) -> str:
     log("user", user_text)
     turns.save_turn(conn, chat_id, "user", user_text)
     messages = turns.history(conn, chat_id)
+    reply = await fast_path(conn, user_text, messages)
+    if reply is not None:
+        lesson = await reflex.learn(conn, user_text)
+        if lesson:
+            reply += f"\n\n📘 Learned (will apply automatically): {lesson}"
+        log("reply", reply[:500])
+        turns.save_turn(conn, chat_id, "assistant", reply)
+        return reply
     system = turns.system_prompt(conn)
     failures, tools_run, bounces = [], 0, 0
     for _ in range(MAX_STEPS):
