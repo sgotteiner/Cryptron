@@ -5,7 +5,7 @@ args in, result or FAILURE out — always visible in the logbook.
 """
 import json
 
-from ..hands import background, dex, dex_price
+from ..hands import admin, background, dex, dex_price
 from ..log import log
 from ..memory import finds, paths, recall
 from ..senses import coingecko
@@ -16,6 +16,10 @@ async def run_tool(conn, name: str, args: dict) -> dict:
     try:
         if name == "sources":
             return tools.sources(conn)
+        if name == "capabilities":
+            return admin.capabilities(conn)
+        if name == "add_source":
+            return await admin.add_source(conn, **args)
         if name == "calls":
             return tools.calls(conn, **args)
         if name == "price_summary":

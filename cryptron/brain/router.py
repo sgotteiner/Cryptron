@@ -30,7 +30,12 @@ calls; source_id 'sangitagem' (CEX-listed) or 'crypto_gemsignals' (DEX gems).
 LIVE lookups (one tool call): cmc_lookup{"symbols":[...]} price/cap/volume/rank \
 now · sentiment{"coin"} votes/watchlist/community sizes · exchanges{"coin"} CEX \
 listings · dex_search{"query"} pools/liquidity/age · mentions{"ticker","days"} \
-attention across channels · fear_greed{} regime now vs averages.
+attention across channels · fear_greed{} regime now vs averages · capabilities{} \
+what the bot watches/senses/can do (use for "what tools/sources do you have") · \
+add_source{"kind": telegram|cmc|reddit|news|coingecko, ...} start watching \
+something new (telegram: source_id+link+backfill; cmc/coingecko: symbols:[...]; \
+reddit: source_id+subreddit; news: source_id+url) — use when he says "add/watch \
+this group/coin/subreddit".
 
 SQL notes: numeric outcome columns can be NULL (unpriceable coins) — always \
 add NULLS LAST to ORDER BY ... DESC, or filter IS NOT NULL.
@@ -48,7 +53,7 @@ plain language. If the result is empty or lacks it, say exactly that. Never \
 add numbers of your own. Output plain text, no JSON."""
 
 FAST_TOOLS = {"cmc_lookup", "sentiment", "exchanges", "dex_search",
-              "mentions", "fear_greed"}
+              "mentions", "fear_greed", "capabilities", "add_source"}
 
 
 async def route(user_text: str, recent: str) -> dict | None:
