@@ -51,7 +51,9 @@ async def handle_approvals(conn, chat_id: str, text: str) -> str | None:
                                    lesson_src="approved next step")
             log("edge", f"taught: {action['tool']}")
         from . import router
-        reply = await router.compose(s["task"] or "the requested check", result)
+        purpose = (f"What did this check find? {action['tool']} was run because: "
+                   f"{action.get('why', 'the suggested next step')}")
+        reply = await router.compose(purpose, result)
         return reply + await suggest_next(conn, chat_id)
     return None
 
@@ -79,7 +81,8 @@ async def suggest_next(conn, chat_id: str) -> str:
         top = await steps.next_taught(conn, situation, done)
         if top and top["sim"] >= steps.STEP_SIM_MIN and \
                 top["action"].get("kind") != "verdict":
-            action, source = top["action"], f"your teaching, sim={top['sim']}"
+            action, source = dict(top["action"]), f"your teaching, sim={top['sim']}"
+            action["why"] = source
     except Exception as e:
         log("suggest-err", f"{type(e).__name__}: {e}")
     if action is None:
@@ -88,7 +91,8 @@ async def suggest_next(conn, chat_id: str) -> str:
                 {"role": "user", "content": situation}])).strip()
             sug = json.loads(raw[raw.find("{"): raw.rfind("}") + 1])
             if sug.get("tool"):
-                action = {"tool": sug["tool"], "args_hint": sug.get("args", {})}
+                action = {"tool": sug["tool"], "args_hint": sug.get("args", {}),
+                          "why": sug.get("why", "")}
                 source = sug.get("why", "my reasoning")
         except Exception as e:
             log("suggest-err", f"{type(e).__name__}: {e}")

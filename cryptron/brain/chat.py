@@ -48,8 +48,19 @@ async def send(client, api: str, chat_id: str, text: str) -> None:
 
 async def handle(conn, client, api: str, chat_id: str, text: str) -> None:
     print(f"user: {text[:80]}", flush=True)
+    task = asyncio.create_task(answer(conn, chat_id, text))
+    while True:  # his rule: never minutes of silence — heartbeat every 60s
+        done, _ = await asyncio.wait({task}, timeout=60)
+        if done:
+            break
+        try:
+            await client.post(f"{api}/sendMessage", json={
+                "chat_id": chat_id,
+                "text": "⏳ still working (long check — rate-limited APIs pace themselves)…"})
+        except Exception:
+            pass
     try:
-        reply = await answer(conn, chat_id, text)
+        reply = task.result()
     except Exception as e:
         reply = f"Brain error: {type(e).__name__}: {e}"
     try:
@@ -90,11 +101,13 @@ async def main() -> None:
 
                 cq = upd.get("callback_query")
                 if cq and str(cq["message"]["chat"]["id"]) == chat_id:
+                    print(f"button: {cq['data']}", flush=True)
                     await client.post(f"{api}/answerCallbackQuery",
                                       json={"callback_query_id": cq["id"]})
                     await client.post(f"{api}/editMessageReplyMarkup", json={
                         "chat_id": chat_id,
-                        "message_id": cq["message"]["message_id"]})
+                        "message_id": cq["message"]["message_id"],
+                        "reply_markup": {"inline_keyboard": []}})
                     if cq["data"] == "close":
                         s = session.of(chat_id)
                         s["next"], s["bank"] = None, None
