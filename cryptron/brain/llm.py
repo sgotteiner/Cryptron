@@ -20,19 +20,17 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 async def _claude(system: str, messages: list) -> str:
-    token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip()
-    if not token:
-        raise RuntimeError("no CLAUDE_CODE_OAUTH_TOKEN in .env")
     convo = "\n\n".join(f"[{m['role']}]\n{m['content']}" for m in messages)
     prompt = (f"{system}\n\n=== CONVERSATION SO FAR ===\n{convo}\n\n"
               "=== YOUR NEXT OUTPUT (one JSON object, per protocol) ===")
-    # Clean env: the machine's settings.json routes to OpenRouter; explicit
-    # vars override it so the subscription token is what gets used.
+    # Clean env so inherited session vars can't hijack auth: the CLI then
+    # authenticates from the machine's stored login (~/.claude/.credentials.json);
+    # CLAUDE_CODE_OAUTH_TOKEN in .env is an optional override.
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("ANTHROPIC_", "CLAUDE_", "CLAUDECODE"))}
-    env.update({"CLAUDE_CODE_OAUTH_TOKEN": token,
-                "ANTHROPIC_BASE_URL": "", "ANTHROPIC_AUTH_TOKEN": "",
-                "ANTHROPIC_API_KEY": "", "ANTHROPIC_MODEL": ""})
+    token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip()
+    if token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = token
     proc = await asyncio.create_subprocess_exec(
         "claude", "-p", "--output-format", "text", "--model", CLAUDE_MODEL,
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
