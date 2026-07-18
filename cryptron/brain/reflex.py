@@ -37,7 +37,7 @@ async def learn(conn, user_text: str) -> str | None:
     lesson = obj.get("lesson")
     if not lesson:
         return None
-    saved = paths.save_guidance(conn, lesson=lesson, why=obj.get("why", ""))
+    saved = await paths.save_guidance(conn, lesson=lesson, why=obj.get("why", ""))
     if "learned" in saved:
         log("reflex", f"BANKED: {lesson}")
         return lesson

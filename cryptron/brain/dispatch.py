@@ -45,7 +45,7 @@ async def run_tool(conn, name: str, args: dict) -> dict:
         if name == "tv_ohlcv":
             return await tools.tv_ohlcv(**args)
         if name == "save_guidance":
-            return paths.save_guidance(conn, **args)
+            return await paths.save_guidance(conn, **args)
         if name == "open_thread":
             return paths.open_thread(conn, **args)
         if name == "replay_thread":

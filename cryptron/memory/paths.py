@@ -1,14 +1,15 @@
 """The path layer (memory_design.md §6): the retrieval unit is the PATH.
 
 An investigation is a chain of beads on a thread. The beads are experiments —
-and the guidance pivots that redirected them: "check the trend first" is what
-turned one experiment into the next, so replay must show the pivot at the
-exact transition it caused, or the path replays without its reasons.
+and the guidance pivots that redirected them: replay must show the pivot at
+the exact transition it caused, or the path replays without its reasons.
 
-The playbook lives here too: a lesson is either global (rides on every prompt)
-or a pivot on a live thread (carries the address of the transition it caused).
+The playbook lives here too — and lessons are embedded on save and retrieved
+by RELEVANCE to the message at hand, never dumped wholesale.
 """
-from . import finds
+import json
+
+from . import embed, finds
 
 
 def open_thread(conn, thread_id: str, question: str, parent: str | None = None,
@@ -23,25 +24,39 @@ def open_thread(conn, thread_id: str, question: str, parent: str | None = None,
             "note": "pass thread_id to record_experiment so its beads land on this path"}
 
 
-def save_guidance(conn, lesson: str, why: str = "", provenance: str = "user",
-                  thread_id: str | None = None,
-                  after_experiment: str | None = None) -> dict:
+async def save_guidance(conn, lesson: str, why: str = "", provenance: str = "user",
+                        thread_id: str | None = None,
+                        after_experiment: str | None = None) -> dict:
     """Ask once -> learned. Anchored (thread_id, after_experiment) = a pivot bead."""
     dup = conn.execute("""
         SELECT id FROM guidance WHERE active AND lower(lesson) = lower(%s)""",
         (lesson,)).fetchone()
     if dup:  # the playbook holds one truth per lesson
         return {"already_known": lesson, "note": "lesson was in the playbook already"}
+    try:  # embed for selective retrieval; a hiccup must not lose the lesson
+        vec = json.dumps(await embed.embed(f"{lesson} {why}"))
+    except Exception:
+        vec = None
     conn.execute("""
-        INSERT INTO guidance (lesson, why, provenance, thread_id, after_experiment)
-        VALUES (%s, %s, %s, %s, %s)""",
-        (lesson, why, provenance, thread_id, after_experiment))
+        INSERT INTO guidance (lesson, why, provenance, thread_id, after_experiment,
+                              embedding)
+        VALUES (%s, %s, %s, %s, %s, %s::vector)""",
+        (lesson, why, provenance, thread_id, after_experiment, vec))
     return {"learned": lesson} | ({"pivot_on": thread_id} if thread_id else {})
 
 
-def load_guidance(conn) -> list:
+def load_guidance(conn, query_vec: str | None = None, k: int = 6) -> list:
+    """The playbook slice for THIS message: top-k by relevance when a query
+    embedding is given (memory_design §6 — never inject everything), else the
+    k most recent. Unembedded lessons ride along until backfilled."""
+    if query_vec:
+        return conn.execute("""
+            SELECT lesson, why FROM guidance WHERE active
+            ORDER BY (embedding IS NULL), embedding <=> %s::vector LIMIT %s""",
+            (query_vec, k)).fetchall()
     return conn.execute("""
-        SELECT lesson, why FROM guidance WHERE active ORDER BY id LIMIT 40""").fetchall()
+        SELECT lesson, why FROM guidance WHERE active
+        ORDER BY id DESC LIMIT %s""", (k,)).fetchall()
 
 
 def replay(conn, thread_id: str) -> dict:

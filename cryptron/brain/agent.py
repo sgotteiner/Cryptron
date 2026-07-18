@@ -65,7 +65,7 @@ async def answer(conn, chat_id: str, user_text: str) -> str:
         log("reply", reply[:500])
         turns.save_turn(conn, chat_id, "assistant", reply)
         return reply
-    system = turns.system_prompt(conn)
+    system = await turns.system_prompt(conn, user_text)
     failures, tools_run, bounces = [], 0, 0
     for _ in range(MAX_STEPS):
         raw = (await llm.complete(system, messages)).strip()
@@ -89,7 +89,7 @@ async def answer(conn, chat_id: str, user_text: str) -> str:
             failures.append(f"{name}: {str(result['error'])[:150]}")
         messages.append({"role": "assistant", "content": raw})
         messages.append({"role": "user",
-                         "content": f"TOOL RESULT {name}: {json.dumps(result)[:6000]}"})
+                         "content": f"TOOL RESULT {name}: {json.dumps(result)[:2500]}"})
     else:
         reply = "I ran out of steps mid-investigation — ask me to continue."
 

@@ -148,6 +148,9 @@ CREATE TABLE IF NOT EXISTS experiment_inputs (
 -- the pivot where it happened. Global lessons keep NULLs and ride the playbook.
 ALTER TABLE guidance ADD COLUMN IF NOT EXISTS thread_id TEXT REFERENCES threads(id);
 ALTER TABLE guidance ADD COLUMN IF NOT EXISTS after_experiment TEXT REFERENCES experiments(id);
+-- Selective injection (memory_design §6: never SELECT-everything): lessons are
+-- retrieved by relevance to the message, not dumped wholesale into every call.
+ALTER TABLE guidance ADD COLUMN IF NOT EXISTS embedding VECTOR(1536);
 
 -- ── Memory, layer 2: finds (memory_design.md §4-6) ─────────────────────────
 -- The vault (finds/*.md) is the source of truth; this table is its INDEX —
